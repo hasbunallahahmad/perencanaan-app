@@ -78,18 +78,18 @@ class KegiatanResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('program.kode_program')
-                    ->label('Kode Program')
-                    ->searchable()
-                    ->sortable()
-                    ->copyable(),
+                // TextColumn::make('program.kode_program')
+                //     ->label('Kode Program')
+                //     ->searchable()
+                //     ->sortable()
+                //     ->copyable(),
 
-                TextColumn::make('program.nama_program')
-                    ->label('Nama Program')
-                    ->searchable()
-                    ->sortable()
-                    ->wrap()
-                    ->limit(40),
+                // TextColumn::make('program.nama_program')
+                //     ->label('Nama Program')
+                //     ->searchable()
+                //     ->sortable()
+                //     ->wrap()
+                //     ->limit(40),
                 TextColumn::make('kode_kegiatan')
                     ->label('Kode Kegiatan')
                     ->searchable()
@@ -113,11 +113,11 @@ class KegiatanResource extends Resource
                     ->limit(30)
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('sub_kegiatans_count')
-                    ->label('Jumlah Sub Kegiatan')
-                    ->counts('subKegiatans')
-                    ->sortable()
-                    ->alignCenter(),
+                // TextColumn::make('sub_kegiatans_count')
+                //     ->label('Jumlah Sub Kegiatan')
+                //     ->counts('subKegiatans')
+                //     ->sortable()
+                //     ->alignCenter(),
 
                 TextColumn::make('total_anggaran')
                     ->label('Total Anggaran')
