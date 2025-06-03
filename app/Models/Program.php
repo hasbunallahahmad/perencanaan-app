@@ -17,7 +17,8 @@ class Program extends Model
         'kode_program',
         'nama_program',
         'organisasi_id',
-        'deskripsi',
+        'anggaran',
+        'realisasi',
     ];
 
     protected $casts = [

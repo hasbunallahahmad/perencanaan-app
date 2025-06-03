@@ -119,13 +119,13 @@ class KegiatanResource extends Resource
                 //     ->sortable()
                 //     ->alignCenter(),
 
-                TextColumn::make('total_anggaran')
+                TextColumn::make('anggaran')
                     ->label('Total Anggaran')
                     ->money('IDR')
                     ->sortable()
                     ->alignEnd(),
 
-                TextColumn::make('total_realisasi')
+                TextColumn::make('realisasi')
                     ->label('Total Realisasi')
                     ->money('IDR')
                     ->sortable()

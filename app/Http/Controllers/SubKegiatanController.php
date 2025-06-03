@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\SubKegiatanResource;
+use App\Filament\Resources\SubKegiatanResource;
 use App\Http\Resources\SubKegiatanCollection;
 use App\Models\SubKegiatan;
 use Illuminate\Http\Request;
@@ -11,188 +11,72 @@ use Illuminate\Http\JsonResponse;
 
 class SubKegiatanController extends Controller
 {
-    /**
-     * Display a listing of sub kegiatan
-     */
-    public function index(Request $request): JsonResponse
+    // MENDAPATKAN DATA DENGAN PERSENTASE SERAPAN
+    public function index()
     {
-        $query = SubKegiatan::with([
-            'kegiatan.program.organisasi',
-            'serapanAnggaran'
-        ]);
+        $subKegiatans = SubKegiatan::with(['kegiatan.program.organisasi'])
+            ->selectRaw('
+                *,
+                CASE 
+                    WHEN anggaran = 0 OR anggaran IS NULL THEN 0
+                    ELSE ROUND((realisasi / anggaran * 100), 2) 
+                END as serapan_persen
+            ')
+            ->get();
 
-        // Filter berdasarkan program jika ada
-        if ($request->has('program_id')) {
-            $query->whereHas('kegiatan.program', function ($q) use ($request) {
-                $q->where('id', $request->program_id);
-            });
-        }
-
-        // Filter berdasarkan kegiatan jika ada
-        if ($request->has('kegiatan_id')) {
-            $query->where('id_kegiatan', $request->kegiatan_id);
-        }
-
-        // Filter berdasarkan tahun anggaran jika ada
-        if ($request->has('tahun')) {
-            $query->whereHas('serapanAnggaran', function ($q) use ($request) {
-                $q->where('tahun', $request->tahun);
-            });
-        }
-
-        // Search berdasarkan nama sub kegiatan
-        if ($request->has('search')) {
-            $query->where('nama_sub_kegiatan', 'like', '%' . $request->search . '%');
-        }
-
-        // Sorting
-        $sortBy = $request->get('sort_by', 'kode_sub_kegiatan');
-        $sortDirection = $request->get('sort_direction', 'asc');
-        $query->orderBy($sortBy, $sortDirection);
-
-        // Pagination
-        if ($request->has('per_page')) {
-            $subKegiatans = $query->paginate($request->per_page);
-            return response()->json(new SubKegiatanCollection($subKegiatans));
-        }
-
-        $subKegiatans = $query->get();
-        return response()->json(new SubKegiatanCollection($subKegiatans));
+        return response()->json($subKegiatans);
     }
 
-    /**
-     * Display the specified sub kegiatan
-     */
-    public function show(int $id): JsonResponse
+    // FILTER BERDASARKAN SERAPAN
+    public function bySerapan(Request $request)
     {
-        $subKegiatan = SubKegiatan::with([
-            'kegiatan.program.organisasi',
-            'serapanAnggaran'
-        ])->findOrFail($id);
+        $query = SubKegiatan::with(['kegiatan.program.organisasi']);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => new SubKegiatanResource($subKegiatan)
-        ]);
-    }
-
-    /**
-     * Get sub kegiatan minimal data (untuk dropdown/select)
-     */
-    public function minimal(Request $request): JsonResponse
-    {
-        $query = SubKegiatan::with('kegiatan');
-
-        // Filter berdasarkan kegiatan jika ada
-        if ($request->has('kegiatan_id')) {
-            $query->where('id_kegiatan', $request->kegiatan_id);
+        // Filter serapan rendah (< 60%)
+        if ($request->has('serapan_rendah')) {
+            $query->serapanRendah(60);
         }
 
-        $subKegiatans = $query->get();
-
-        $data = $subKegiatans->map(function ($subKegiatan) {
-            return (new SubKegiatanResource($subKegiatan))->minimal();
-        });
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $data
-        ]);
-    }
-
-    /**
-     * Get sub kegiatan grouped by kegiatan
-     */
-    public function groupedByKegiatan(Request $request): JsonResponse
-    {
-        $query = SubKegiatan::with([
-            'kegiatan.program.organisasi',
-            'serapanAnggaran'
-        ]);
-
-        // Filter berdasarkan program jika ada
-        if ($request->has('program_id')) {
-            $query->whereHas('kegiatan.program', function ($q) use ($request) {
-                $q->where('id', $request->program_id);
-            });
+        // Filter serapan tinggi (>= 80%)
+        if ($request->has('serapan_tinggi')) {
+            $query->serapanTinggi(80);
         }
 
-        $subKegiatans = $query->get();
-
-        // Group by kegiatan
-        $grouped = $subKegiatans->groupBy('kegiatan.id')->map(function ($items, $kegiatanId) {
-            $firstItem = $items->first();
-            return [
-                'kegiatan' => [
-                    'id' => $firstItem->kegiatan->id,
-                    'kode_kegiatan' => $firstItem->kegiatan->kode_kegiatan,
-                    'nama_kegiatan' => $firstItem->kegiatan->nama_kegiatan,
-                    'program' => [
-                        'id' => $firstItem->kegiatan->program->id,
-                        'kode_program' => $firstItem->kegiatan->program->kode_program,
-                        'nama_program' => $firstItem->kegiatan->program->nama_program,
-                    ]
-                ],
-                'sub_kegiatans' => SubKegiatanResource::collection($items),
-                'summary' => [
-                    'total_sub_kegiatan' => $items->count(),
-                    'total_anggaran' => $items->sum(function ($item) {
-                        return $item->serapanAnggaran->sum('anggaran');
-                    }),
-                    'total_realisasi' => $items->sum(function ($item) {
-                        return $item->serapanAnggaran->sum('realisasi');
-                    }),
-                ]
-            ];
-        })->values();
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $grouped
-        ]);
-    }
-
-    /**
-     * Get statistics/summary of sub kegiatan
-     */
-    public function statistics(Request $request): JsonResponse
-    {
-        $query = SubKegiatan::with(['serapanAnggaran']);
-
-        // Filter berdasarkan tahun jika ada
-        if ($request->has('tahun')) {
-            $query->whereHas('serapanAnggaran', function ($q) use ($request) {
-                $q->where('tahun', $request->tahun);
-            });
+        // Filter range serapan
+        if ($request->has('min_serapan') && $request->has('max_serapan')) {
+            $query->bySerapanRange($request->min_serapan, $request->max_serapan);
         }
 
-        $subKegiatans = $query->get();
+        $result = $query->selectRaw('
+                *,
+                CASE 
+                    WHEN anggaran = 0 OR anggaran IS NULL THEN 0
+                    ELSE ROUND((realisasi / anggaran * 100), 2) 
+                END as serapan_persen
+            ')
+            ->orderBy('serapan_persen', 'desc')
+            ->get();
 
-        $totalAnggaran = $subKegiatans->sum(function ($item) {
-            return $item->serapanAnggaran->sum('anggaran');
-        });
+        return response()->json($result);
+    }
 
-        $totalRealisasi = $subKegiatans->sum(function ($item) {
-            return $item->serapanAnggaran->sum('realisasi');
-        });
+    // STATISTIK SERAPAN
+    public function statistikSerapan()
+    {
+        $stats = SubKegiatan::selectRaw('
+                COUNT(*) as total_sub_kegiatan,
+                SUM(anggaran) as total_anggaran,
+                SUM(realisasi) as total_realisasi,
+                CASE 
+                    WHEN SUM(anggaran) = 0 THEN 0
+                    ELSE ROUND((SUM(realisasi) / SUM(anggaran) * 100), 2) 
+                END as rata_rata_serapan,
+                SUM(CASE WHEN (realisasi / NULLIF(anggaran, 0) * 100) >= 80 THEN 1 ELSE 0 END) as serapan_tinggi,
+                SUM(CASE WHEN (realisasi / NULLIF(anggaran, 0) * 100) BETWEEN 60 AND 79.99 THEN 1 ELSE 0 END) as serapan_sedang,
+                SUM(CASE WHEN (realisasi / NULLIF(anggaran, 0) * 100) < 60 THEN 1 ELSE 0 END) as serapan_rendah
+            ')
+            ->first();
 
-        $statistics = [
-            'total_sub_kegiatan' => $subKegiatans->count(),
-            'sub_kegiatan_dengan_anggaran' => $subKegiatans->filter(function ($item) {
-                return $item->serapanAnggaran->count() > 0;
-            })->count(),
-            'total_anggaran' => $totalAnggaran,
-            'total_anggaran_formatted' => 'Rp ' . number_format($totalAnggaran, 0, ',', '.'),
-            'total_realisasi' => $totalRealisasi,
-            'total_realisasi_formatted' => 'Rp ' . number_format($totalRealisasi, 0, ',', '.'),
-            'persentase_realisasi' => $totalAnggaran > 0 ? round(($totalRealisasi / $totalAnggaran) * 100, 2) : 0,
-            'sisa_anggaran' => $totalAnggaran - $totalRealisasi,
-            'sisa_anggaran_formatted' => 'Rp ' . number_format($totalAnggaran - $totalRealisasi, 0, ',', '.'),
-        ];
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $statistics
-        ]);
+        return response()->json($stats);
     }
 }

@@ -64,6 +64,13 @@ class ProgramResource extends Resource
                             ->columnSpanFull()
                             ->placeholder('Masukkan nama program'),
 
+                        TextInput::make('anggaran')
+                            ->label('Jumlah Anggaran')
+                            ->required()
+                            ->maxLength(500)
+                            ->columnSpanFull()
+                            ->placeholder('Masukkan Total Anggaran'),
+
                         Select::make('organisasi_id')
                             ->label('Organisasi')
                             ->relationship('organisasi', 'nama')
@@ -115,13 +122,12 @@ class ProgramResource extends Resource
                         return strlen($state) > 80 ? $state : null;
                     }),
 
-                TextColumn::make('organisasi.nama')
-                    ->label('Organisasi')
+                TextColumn::make('anggaran')
+                    ->label('Anggaran')
                     ->searchable()
                     ->sortable()
                     ->limit(50)
-                    ->badge()
-                    ->color('primary'),
+                    ->badge(),
 
                 TextColumn::make('kegiatan_count')
                     ->label('Jumlah Kegiatan')

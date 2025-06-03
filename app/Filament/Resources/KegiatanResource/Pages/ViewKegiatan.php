@@ -54,12 +54,12 @@ class ViewKegiatan extends ViewRecord
                     ->schema([
                         TextEntry::make('total_anggaran')
                             ->label('Total Anggaran')
-                            ->money('IDR')
+                            ->money('Rp')
                             ->weight(FontWeight::Bold),
 
                         TextEntry::make('total_realisasi')
                             ->label('Total Realisasi')
-                            ->money('IDR')
+                            ->money('Rp')
                             ->weight(FontWeight::Bold),
 
                         TextEntry::make('persentase_serapan')

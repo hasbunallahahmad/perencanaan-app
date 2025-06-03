@@ -18,12 +18,14 @@ class SerapanAnggaran extends Model
         'bulan',
         'anggaran',
         'realisasi',
+        'persentase_serapan',
         'keterangan',
     ];
 
     protected $casts = [
         'anggaran' => 'decimal:2',
         'realisasi' => 'decimal:2',
+        'persentase_serapan' => 'decimal:2',
         'tahun' => 'integer',
         'bulan' => 'integer',
         'created_at' => 'datetime',
@@ -80,7 +82,6 @@ class SerapanAnggaran extends Model
 
         return $bulanMap[$this->bulan] ?? 'Unknown';
     }
-
     /**
      * Get formatted anggaran
      */

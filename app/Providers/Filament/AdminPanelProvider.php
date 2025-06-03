@@ -46,14 +46,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                // Widgets\AccountWidget::class,
-                // Widgets\FilamentInfoWidget::class,
-                // masih error
-                // ProgramOverviewWidget::class,
-                // masih error
-                // ProgramCategoryChart::class,
-                // masih error
-                // RecentProgramsWidget::class,
+                Widgets\AccountWidget::class,
+                Widgets\FilamentInfoWidget::class,
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->middleware([
@@ -91,9 +85,9 @@ class AdminPanelProvider extends PanelProvider
             ])->authMiddleware([
                 Authenticate::class,
                 // OwnerUserVerifiedMiddleware::class,
-            ])
-            ->resources([
-                ProgramResource::class,
             ]);
+        // ->resources([
+        //     ProgramResource::class,
+        // ]);
     }
 }

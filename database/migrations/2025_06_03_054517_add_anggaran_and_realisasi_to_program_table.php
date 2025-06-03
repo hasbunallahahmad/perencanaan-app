@@ -11,13 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('notifications', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('type');
-            $table->morphs('notifiable');
-            $table->text('data');
-            $table->timestamp('read_at')->nullable();
-            $table->timestamps();
+        Schema::table('program', function (Blueprint $table) {
+            $table->bigInteger('anggaran')->default(0)->after('nama_program');
+            $table->bigInteger('realisasi')->default(0)->after('anggaran');
         });
     }
 
@@ -26,6 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('notifications');
+        Schema::table('program', function (Blueprint $table) {
+            $table->dropColumn(['anggaran', 'realisasi']);
+        });
     }
 };

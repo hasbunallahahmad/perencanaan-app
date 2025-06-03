@@ -16,6 +16,8 @@ class Kegiatan extends Model
         'kode_kegiatan',
         'nama_kegiatan',
         'id_program',
+        'anggaran',
+        'realisasi',
     ];
     protected $casts = [
         'created_at' => 'datetime',
@@ -46,30 +48,30 @@ class Kegiatan extends Model
     //         ->join('serapan_anggaran', 'sub_kegiatan.id', '=', 'serapan_anggaran.id_sub_kegiatan')
     //         ->sum('serapan_anggaran.realisasi');
     // }
-    public function getTotalAnggaranAttribute()
-    {
-        return $this->subKegiatans->sum(function ($subKegiatan) {
-            return $subKegiatan->serapanAnggaran->sum('anggaran');
-        });
-    }
+    // public function getTotalAnggaranAttribute()
+    // {
+    //     return $this->subKegiatans->sum(function ($subKegiatan) {
+    //         return $subKegiatan->serapanAnggaran->sum('anggaran');
+    //     });
+    // }
 
-    public function getTotalRealisasiAttribute()
-    {
-        return $this->subKegiatans->sum(function ($subKegiatan) {
-            return $subKegiatan->serapanAnggaran->sum('realisasi');
-        });
-    }
-    public function getPersentaseSerapanAttribute()
-    {
-        $totalAnggaran = $this->total_anggaran;
-        $totalRealisasi = $this->total_realisasi;
+    // public function getTotalRealisasiAttribute()
+    // {
+    //     return $this->subKegiatans->sum(function ($subKegiatan) {
+    //         return $subKegiatan->serapanAnggaran->sum('realisasi');
+    //     });
+    // }
+    // public function getPersentaseSerapanAttribute()
+    // {
+    //     $totalAnggaran = $this->total_anggaran;
+    //     $totalRealisasi = $this->total_realisasi;
 
-        if ($totalAnggaran > 0) {
-            return round(($totalRealisasi / $totalAnggaran) * 100, 2);
-        }
+    //     if ($totalAnggaran > 0) {
+    //         return round(($totalRealisasi / $totalAnggaran) * 100, 2);
+    //     }
 
-        return 0;
-    }
+    //     return 0;
+    // }
     public function getOrganisasiAttribute()
     {
         return $this->program?->organisasi;
