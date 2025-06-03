@@ -27,23 +27,37 @@ class Kegiatan extends Model
     }
     public function subKegiatans(): HasMany
     {
-        if ($this->primaryKey === 'id_kegiatan') {
-            return $this->hasMany(SubKegiatan::class, 'id_kegiatan', 'id_kegiatan');
-        } else {
-            return $this->hasMany(SubKegiatan::class, 'id_kegiatan');
-        }
+        // if ($this->primaryKey === 'id_kegiatan') {
+        //     return $this->hasMany(SubKegiatan::class, 'id_kegiatan', 'id_kegiatan');
+        // } else {
+        //     return $this->hasMany(SubKegiatan::class, 'id_kegiatan');
+        // }
+        return $this->hasMany(SubKegiatan::class, 'id_kegiatan', 'id_kegiatan');
     }
+    // public function getTotalAnggaranAttribute()
+    // {
+    //     return $this->subKegiatans()
+    //         ->join('serapan_anggaran', 'sub_kegiatan.id', '=', 'serapan_anggaran.id_sub_kegiatan')
+    //         ->sum('serapan_anggaran.anggaran');
+    // }
+    // public function getTotalRealisasiAttribute()
+    // {
+    //     return $this->subKegiatans()
+    //         ->join('serapan_anggaran', 'sub_kegiatan.id', '=', 'serapan_anggaran.id_sub_kegiatan')
+    //         ->sum('serapan_anggaran.realisasi');
+    // }
     public function getTotalAnggaranAttribute()
     {
-        return $this->subKegiatans()
-            ->join('serapan_anggaran', 'sub_kegiatan.id', '=', 'serapan_anggaran.id_sub_kegiatan')
-            ->sum('serapan_anggaran.anggaran');
+        return $this->subKegiatans->sum(function ($subKegiatan) {
+            return $subKegiatan->serapanAnggaran->sum('anggaran');
+        });
     }
+
     public function getTotalRealisasiAttribute()
     {
-        return $this->subKegiatans()
-            ->join('serapan_anggaran', 'sub_kegiatan.id', '=', 'serapan_anggaran.id_sub_kegiatan')
-            ->sum('serapan_anggaran.realisasi');
+        return $this->subKegiatans->sum(function ($subKegiatan) {
+            return $subKegiatan->serapanAnggaran->sum('realisasi');
+        });
     }
     public function getPersentaseSerapanAttribute()
     {

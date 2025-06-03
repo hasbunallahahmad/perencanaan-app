@@ -33,7 +33,7 @@ class Program extends Model
 
     public function kegiatan()
     {
-        return $this->hasMany(Kegiatan::class, 'id_program', 'id');
+        return $this->hasMany(Kegiatan::class, 'id_program', 'id_program');
     }
     public function subKegiatan()
     {

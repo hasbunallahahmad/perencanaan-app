@@ -35,7 +35,7 @@ class SerapanAnggaran extends Model
      */
     public function subKegiatan(): BelongsTo
     {
-        return $this->belongsTo(SubKegiatan::class, 'id_sub_kegiatan');
+        return $this->belongsTo(SubKegiatan::class, 'id_sub_kegiatan', 'id_sub_kegiatan');
     }
 
     /**

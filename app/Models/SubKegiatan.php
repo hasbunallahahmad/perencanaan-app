@@ -25,11 +25,11 @@ class SubKegiatan extends Model
     ];
     public function kegiatan(): BelongsTo
     {
-        return $this->belongsTo(Kegiatan::class, 'id_kegiatan');
+        return $this->belongsTo(Kegiatan::class, 'id_kegiatan', 'id_kegiatan');
     }
     public function serapanAnggaran(): HasMany
     {
-        return $this->hasMany(SerapanAnggaran::class, 'id_sub_kegiatan');
+        return $this->hasMany(SerapanAnggaran::class, 'id_sub_kegiatan', 'id_sub_kegiatan');
     }
     public function latestSerapanAnggaran(): BelongsTo
     {

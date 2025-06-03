@@ -78,6 +78,18 @@ class KegiatanResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('program.kode_program')
+                    ->label('Kode Program')
+                    ->searchable()
+                    ->sortable()
+                    ->copyable(),
+
+                TextColumn::make('program.nama_program')
+                    ->label('Nama Program')
+                    ->searchable()
+                    ->sortable()
+                    ->wrap()
+                    ->limit(40),
                 TextColumn::make('kode_kegiatan')
                     ->label('Kode Kegiatan')
                     ->searchable()
@@ -92,18 +104,6 @@ class KegiatanResource extends Resource
                     ->wrap()
                     ->limit(50),
 
-                TextColumn::make('program.kode_program')
-                    ->label('Kode Program')
-                    ->searchable()
-                    ->sortable()
-                    ->copyable(),
-
-                TextColumn::make('program.nama_program')
-                    ->label('Nama Program')
-                    ->searchable()
-                    ->sortable()
-                    ->wrap()
-                    ->limit(40),
 
                 TextColumn::make('program.organisasi.nama')
                     ->label('Organisasi')
@@ -161,7 +161,7 @@ class KegiatanResource extends Resource
                         return Program::with('organisasi')
                             ->get()
                             ->pluck('organisasi.nama', 'organisasi.id')
-                            ->filter() // Remove null values
+                            ->filter()
                             ->unique();
                     })
                     ->query(function (Builder $query, array $data): Builder {

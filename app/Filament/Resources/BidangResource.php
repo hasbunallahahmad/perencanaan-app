@@ -82,7 +82,7 @@ class BidangResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('organisasi_id')
                     ->label('Organisasi')
-                    ->options(fn() => self::getCachedAllOrganisasi()),
+                    ->options(fn() => self::getCachedOrganisasi()),
                 Tables\Filters\TernaryFilter::make('is_sekretariat')
                     ->label('Unit Sekretariat'),
                 Tables\Filters\TernaryFilter::make('aktif'),
@@ -110,7 +110,7 @@ class BidangResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListBidangs::route('/'),
+            'index' => Pages\ListBidang::route('/'),
             'create' => Pages\CreateBidang::route('/create'),
             'edit' => Pages\EditBidang::route('/{record}/edit'),
         ];
@@ -119,6 +119,14 @@ class BidangResource extends Resource
     {
         return Cache::remember('bidang_count', 300, function () {
             return static::getModel()::count();
+        });
+    }
+    private static function getCachedOrganisasi(): array
+    {
+        return Cache::remember('organisasi_options', 300, function () {
+            return Organisasi::where('aktif', true)
+                ->pluck('nama', 'id')
+                ->toArray();
         });
     }
 }
