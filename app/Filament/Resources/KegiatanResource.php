@@ -7,6 +7,7 @@ use App\Filament\Resources\KegiatanResource\RelationManagers;
 use App\Models\Kegiatan;
 use App\Models\Program;
 use Filament\Forms;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -32,7 +33,7 @@ class KegiatanResource extends Resource
     protected static ?string $navigationLabel = 'Kegiatan';
 
     protected static ?string $pluralLabel = 'Kegiatan';
-
+    protected static ?string $pluralModelLabel = 'Kegiatan';
     protected static ?string $navigationGroup = 'Master Data';
 
     protected static ?int $navigationSort = 2;
@@ -70,7 +71,27 @@ class KegiatanResource extends Resource
                             ->placeholder('Pilih program')
                             ->getOptionLabelFromRecordUsing(fn(Program $record) => "{$record->kode_program} - {$record->nama_program}"),
                     ])
-                    ->columns(2)
+                    ->columns(2),
+                Section::make('Informasi Anggaran')
+                    ->schema([
+                        Forms\Components\Placeholder::make('anggaran_info')
+                            ->label('Total Anggaran')
+                            ->content(fn($record) => $record ? 'Rp ' . number_format($record->anggaran, 0, ',', '.') : 'Rp 0')
+                            ->visible(fn($context) => $context === 'edit' || $context === 'view'),
+
+                        Forms\Components\Placeholder::make('realisasi_info')
+                            ->label('Total Realisasi')
+                            ->content(fn($record) => $record ? 'Rp ' . number_format($record->realisasi, 0, ',', '.') : 'Rp 0')
+                            ->visible(fn($context) => $context === 'edit' || $context === 'view'),
+
+                        Forms\Components\Placeholder::make('persentase_info')
+                            ->label('Persentase Serapan')
+                            ->content(fn($record) => $record ? $record->persentase_serapan . '%' : '0%')
+                            ->visible(fn($context) => $context === 'edit' || $context === 'view'),
+                    ])
+                    ->columns(3)
+                    ->visible(fn($context) => $context === 'edit' || $context === 'view')
+                    ->description('Anggaran dan realisasi dihitung otomatis dari sub kegiatan')
             ]);
     }
 
@@ -78,18 +99,6 @@ class KegiatanResource extends Resource
     {
         return $table
             ->columns([
-                // TextColumn::make('program.kode_program')
-                //     ->label('Kode Program')
-                //     ->searchable()
-                //     ->sortable()
-                //     ->copyable(),
-
-                // TextColumn::make('program.nama_program')
-                //     ->label('Nama Program')
-                //     ->searchable()
-                //     ->sortable()
-                //     ->wrap()
-                //     ->limit(40),
                 TextColumn::make('kode_kegiatan')
                     ->label('Kode Kegiatan')
                     ->searchable()
@@ -102,7 +111,7 @@ class KegiatanResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->wrap()
-                    ->limit(50),
+                    ->limit(100),
 
 
                 TextColumn::make('program.organisasi.nama')
@@ -112,12 +121,6 @@ class KegiatanResource extends Resource
                     ->wrap()
                     ->limit(30)
                     ->toggleable(isToggledHiddenByDefault: true),
-
-                // TextColumn::make('sub_kegiatans_count')
-                //     ->label('Jumlah Sub Kegiatan')
-                //     ->counts('subKegiatans')
-                //     ->sortable()
-                //     ->alignCenter(),
 
                 TextColumn::make('anggaran')
                     ->label('Total Anggaran')
@@ -173,9 +176,21 @@ class KegiatanResource extends Resource
                     ->searchable(),
             ])
             ->actions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                ViewAction::make()
+                    ->icon('heroicon-o-eye')
+                    ->color('info')
+                    ->label('')
+                    ->tooltip('Detail'),
+                EditAction::make()
+                    ->icon('heroicon-o-pencil')
+                    ->color('warning')
+                    ->label('')
+                    ->tooltip('Ubah'),
+                DeleteAction::make()
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->label('')
+                    ->tooltip('Hapus'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

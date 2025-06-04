@@ -54,6 +54,50 @@ class UserResource extends Resource
                 'seksi'
             ]);
     }
+    protected static function getCachedOrganisasi(): array
+    {
+        return Cache::remember('organisasi_options', 300, function () {
+            return Organisasi::where('aktif', true)
+                ->orderBy('nama')
+                ->pluck('nama', 'id')
+                ->toArray();
+        });
+    }
+
+    protected static function getCachedBidangByOrganisasi(?int $organisasiId)
+    {
+        if (!$organisasiId) {
+            return collect();
+        }
+
+        return Cache::remember("bidang_by_organisasi_{$organisasiId}", 300, function () use ($organisasiId) {
+            return Bidang::where('organisasi_id', $organisasiId)
+                ->where('aktif', true)
+                ->orderBy('nama')
+                ->get();
+        });
+    }
+    protected static function getCachedSeksiByBidang(?int $bidangId)
+    {
+        if (!$bidangId) {
+            return collect();
+        }
+
+        return Cache::remember("seksi_by_bidang_{$bidangId}", 300, function () use ($bidangId) {
+            return Seksi::where('bidang_id', $bidangId)
+                ->where('aktif', true)
+                ->orderBy('nama')
+                ->get();
+        });
+    }
+    protected static function getCachedRoles(): array
+    {
+        return Cache::remember('roles_options', 300, function () {
+            return Role::orderBy('name')
+                ->pluck('name', 'name')
+                ->toArray();
+        });
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -122,13 +166,13 @@ class UserResource extends Resource
                             ->preload()
                             ->searchable()
                             ->label('Roles')
-                            ->helperText('You can assign multiple roles to a user.'),
+                            ->helperText('Anda Dapat Memilih Lebih Dari Satu Role'),
                         Forms\Components\Select::make('permissions')
                             ->relationship('permissions', 'name')
                             ->multiple()
                             ->searchable()
                             ->label('Direct Permissions')
-                            ->helperText('You can assign multiple permissions to a user.'),
+                            ->helperText('Anda Dapat Memilih Lebih Dari Satu Permission'),
                     ])
                     ->columns(2),
             ]);
@@ -149,6 +193,18 @@ class UserResource extends Resource
                     ->separator(',')
                     ->color('success')
                     ->label('Roles'),
+                Tables\Columns\TextColumn::make('organisasi.nama')
+                    ->label('Organisasi')
+                    ->sortable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('bidang.nama')
+                    ->label('Bidang')
+                    ->sortable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('seksi.nama')
+                    ->label('Seksi')
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('email_verified_at')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-badge')

@@ -6,6 +6,7 @@ use App\Filament\Resources\ProgramResource;
 use App\Filament\Widgets\ProgramCategoryChart;
 use App\Filament\Widgets\ProgramOverviewWidget;
 use App\Filament\Widgets\RecentProgramsWidget;
+use App\Filament\Widgets\YearSelectorHeaderWidget;
 use App\Http\Middleware\OwnerUserVerifiedMiddleware;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -23,6 +24,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
+use Filament\Actions\Action;
 use Filament\Navigation\NavigationGroup;
 
 class AdminPanelProvider extends PanelProvider
@@ -48,6 +50,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\AccountWidget::class,
                 Widgets\FilamentInfoWidget::class,
+                YearSelectorHeaderWidget::class,
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->middleware([

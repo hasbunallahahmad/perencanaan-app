@@ -9,22 +9,32 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Program extends Model
 {
     use HasFactory, SoftDeletes;
+
     protected $table = 'program';
     protected $primaryKey = 'id_program';
     public $incrementing = true;
     protected $keyType = 'int';
+
     protected $fillable = [
         'kode_program',
         'nama_program',
         'organisasi_id',
-        'anggaran',
-        'realisasi',
+        'deskripsi', // tambahkan jika ada field deskripsi
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+    ];
+
+    // Tambahkan accessor untuk anggaran dan realisasi otomatis
+    protected $appends = [
+        'total_anggaran',
+        'total_realisasi',
+        'persentase_serapan',
+        'formatted_anggaran',
+        'formatted_realisasi'
     ];
 
     public function organisasi()
@@ -36,46 +46,106 @@ class Program extends Model
     {
         return $this->hasMany(Kegiatan::class, 'id_program', 'id_program');
     }
+
+    /**
+     * Perbaikan relasi subKegiatan - parameter hasManyThrough diperbaiki
+     */
     public function subKegiatan()
     {
-        // return $this->hasMany(SubKegiatan::class, 'id_kegiatan', 'id');
         return $this->hasManyThrough(
             SubKegiatan::class,
             Kegiatan::class,
-            'id_program',
-            'id_program',
-            'id_kegiatan',
-            'id_kegiatan'
+            'id_program',      // Foreign key di tabel kegiatan
+            'id_kegiatan',     // Foreign key di tabel sub_kegiatan
+            'id_program',      // Local key di tabel program
+            'id_kegiatan'      // Local key di tabel kegiatan
         );
     }
+
+    /**
+     * Accessor untuk total anggaran dari semua kegiatan
+     */
+    public function getTotalAnggaranAttribute(): int
+    {
+        return $this->kegiatan()->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+            ->sum('sub_kegiatan.anggaran') ?? 0;
+    }
+
+    /**
+     * Accessor untuk total realisasi dari semua kegiatan
+     */
+    public function getTotalRealisasiAttribute(): int
+    {
+        return $this->kegiatan()->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+            ->sum('sub_kegiatan.realisasi') ?? 0;
+    }
+
+    /**
+     * Accessor untuk persentase serapan program
+     */
+    public function getPersentaseSerapanAttribute(): float
+    {
+        $totalAnggaran = $this->total_anggaran;
+        $totalRealisasi = $this->total_realisasi;
+
+        if ($totalAnggaran > 0) {
+            return round(($totalRealisasi / $totalAnggaran) * 100, 2);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Format anggaran untuk display
+     */
+    public function getFormattedAnggaranAttribute(): string
+    {
+        return 'Rp ' . number_format($this->total_anggaran, 0, ',', '.');
+    }
+
+    /**
+     * Format realisasi untuk display
+     */
+    public function getFormattedRealisasiAttribute(): string
+    {
+        return 'Rp ' . number_format($this->total_realisasi, 0, ',', '.');
+    }
+
     public function getTotalKegiatanAttribute(): int
     {
         return $this->kegiatan()->count();
     }
+
     public function getTotalSubKegiatanAttribute(): int
     {
-        return $this->kegiatan()->withCount('subKegiatan')->get()->sum('sub_kegiatan_count');
+        return $this->subKegiatan()->count();
     }
+
     public function scopeByKode($query, string $kode)
     {
         return $query->where('kode_program', $kode);
     }
+
     public function scopeByOrganisasi($query, int $organisasiId)
     {
         return $query->where('organisasi_id', $organisasiId);
     }
+
     public function scopeHasKegiatan($query)
     {
         return $query->has('kegiatan');
     }
+
     public function scopePenunjang($query)
     {
         return $query->where('kode_program', 'like', '2.08.01%');
     }
+
     public function scopePug($query)
     {
         return $query->where('kode_program', 'like', '2.08.02%');
     }
+
     public function scopeAnak($query)
     {
         return $query->where(function ($q) {
@@ -83,6 +153,7 @@ class Program extends Model
                 ->orWhere('kode_program', 'like', '2.08.07%');
         });
     }
+
     public function getKategoriAttribute(): string
     {
         $kode = $this->kode_program;
@@ -109,6 +180,7 @@ class Program extends Model
 
         return 'Lainnya';
     }
+
     public function getBadgeColorAttribute(): string
     {
         return match ($this->kategori) {
@@ -124,6 +196,7 @@ class Program extends Model
             default => 'gray',
         };
     }
+
     public static function getStatistics(): array
     {
         return [
@@ -133,6 +206,12 @@ class Program extends Model
             'program_penunjang' => static::penunjang()->count(),
             'program_pug' => static::pug()->count(),
             'program_anak' => static::anak()->count(),
+            'total_anggaran_semua' => static::join('kegiatan', 'program.id_program', '=', 'kegiatan.id_program')
+                ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+                ->sum('sub_kegiatan.anggaran'),
+            'total_realisasi_semua' => static::join('kegiatan', 'program.id_program', '=', 'kegiatan.id_program')
+                ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+                ->sum('sub_kegiatan.realisasi'),
         ];
     }
 }

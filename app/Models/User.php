@@ -29,6 +29,9 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'email_verified_at',
         'owner_verified_at',
+        'organisasi_id',
+        'bidang_id',
+        'seksi_id',
     ];
 
     /**
@@ -75,6 +78,6 @@ class User extends Authenticatable implements FilamentUser
 
     public function getFullNameAttribute()
     {
-        return $this->name . ($this->nip ? ' (' . $this->nip . ')' : '');
+        return $this->name;
     }
 }

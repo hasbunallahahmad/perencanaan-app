@@ -33,6 +33,7 @@ class SubKegiatanResource extends Resource
     protected static ?string $navigationLabel = 'Sub Kegiatan';
 
     protected static ?string $pluralLabel = 'Sub Kegiatan';
+    protected static ?string $pluralModelLabel = 'Sub Kegiatan';
 
     protected static ?string $navigationGroup = 'Master Data';
 
@@ -57,19 +58,6 @@ class SubKegiatanResource extends Resource
                             ->maxLength(255)
                             ->placeholder('Masukkan nama sub kegiatan'),
 
-                        // Select::make('id_kegiatan')
-                        //     ->label('Kegiatan')
-                        //     ->options(function () {
-                        //         return Kegiatan::with(['program.organisasi'])
-                        //             ->get()
-                        //             ->mapWithKeys(function ($kegiatan) {
-                        //                 return [$kegiatan->id => $kegiatan->kode_kegiatan . ' - ' . $kegiatan->nama_kegiatan];
-                        //             });
-                        //     })
-                        //     ->required()
-                        //     ->searchable()
-                        //     ->placeholder('Pilih kegiatan')
-                        //     ->getOptionLabelFromRecordUsing(fn(Kegiatan $record) => "{$record->kode_kegiatan} - {$record->nama_kegiatan}"),
                         Select::make('id_kegiatan')
                             ->label('Kegiatan')
                             ->relationship(
@@ -88,7 +76,7 @@ class SubKegiatanResource extends Resource
                         Select::make('sumber_dana')
                             ->label('Sumber Dana')
                             ->multiple()
-                            ->default('APBD')
+                            ->default(['APBD']) // Default sebagai array
                             ->options([
                                 'APBD' => 'APBD',
                                 'BANKEU' => 'BANKEU',
@@ -96,7 +84,9 @@ class SubKegiatanResource extends Resource
                                 'DBHCHT' => 'DBHCHT',
                                 'DAK' => 'DAK',
                             ])
-                            ->required(),
+                            ->required()
+                            ->searchable()
+                            ->helperText('Pilih satu atau lebih sumber dana'),
 
                         TextInput::make('anggaran')
                             ->label('Anggaran')
@@ -142,10 +132,23 @@ class SubKegiatanResource extends Resource
                     ->sortable()
                     ->wrap()
                     ->limit(60),
-
                 TextColumn::make('sumber_dana')
                     ->label('Sumber Dana')
-                    ->searchable()
+                    ->getStateUsing(function ($record) {
+                        $sumberDana = $record->sumber_dana;
+                        if (is_array($sumberDana) && !empty($sumberDana)) {
+                            return array_values(array_unique(array_filter($sumberDana)));
+                        }
+                    })
+                    ->badge()
+                    ->color(fn(string $state): string => match ($state) {
+                        'APBD' => 'success',
+                        'BANKEU' => 'info',
+                        'APBN' => 'warning',
+                        'DBHCHT' => 'gray',
+                        'DAK' => 'danger',
+                        default => 'gray',
+                    })
                     ->sortable(),
 
                 TextColumn::make('kegiatan.kode_kegiatan')
@@ -276,6 +279,23 @@ class SubKegiatanResource extends Resource
                         );
                     })
                     ->searchable(),
+
+                // Filter berdasarkan sumber dana (JSON)
+                SelectFilter::make('sumber_dana')
+                    ->label('Sumber Dana')
+                    ->options([
+                        'APBD' => 'APBD',
+                        'BANKEU' => 'BANKEU',
+                        'APBN' => 'APBN',
+                        'DBHCHT' => 'DBHCHT',
+                        'DAK' => 'DAK',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query->when(
+                            $data['value'] ?? null,
+                            fn(Builder $query, $value): Builder => $query->whereJsonContains('sumber_dana', $value)
+                        );
+                    }),
 
                 Tables\Filters\Filter::make('serapan_rendah')
                     ->label('Serapan < 60%')
