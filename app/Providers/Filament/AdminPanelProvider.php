@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\PerencanaanKinerja;
+use App\Filament\Pages\RealisasiKinerja;
 use App\Filament\Resources\ProgramResource;
 use App\Filament\Widgets\ProgramCategoryChart;
 use App\Filament\Widgets\ProgramOverviewWidget;
@@ -45,12 +47,14 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 Pages\Dashboard::class,
+                PerencanaanKinerja::class,
+                RealisasiKinerja::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
                 Widgets\FilamentInfoWidget::class,
-                YearSelectorHeaderWidget::class,
+                // YearSelectorHeaderWidget::class,
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->middleware([
@@ -69,12 +73,16 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Master Data')
                     ->icon('heroicon-o-circle-stack')
                     ->collapsible(),
-                NavigationGroup::make('Pelaporan')
-                    ->label('Pelaporan')
+                NavigationGroup::make('Perencanaan')
+                    ->label('Perencanaan')
                     ->icon('heroicon-o-chart-bar')
                     ->collapsible(),
-                NavigationGroup::make('Pengaturan')
-                    ->label('Pengaturan')
+                NavigationGroup::make('Capaian Kinerja')
+                    ->label('Capaian Kinerja')
+                    ->icon('heroicon-o-chart-bar')
+                    ->collapsible(),
+                NavigationGroup::make('Users Management')
+                    ->label('Users Management')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsible(),
             ])

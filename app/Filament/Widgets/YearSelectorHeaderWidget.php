@@ -65,6 +65,6 @@ class YearSelectorHeaderWidget extends Widget implements HasForms, HasActions
 
     public static function canView(): bool
     {
-        return true;
+        return false;
     }
 }

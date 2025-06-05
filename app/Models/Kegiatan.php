@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\YearContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -98,6 +99,10 @@ class Kegiatan extends Model
 
         return 0;
     }
+    public function getPersentaseRealisasiAttribute()
+    {
+        return $this->anggaran > 0 ? ($this->realisasi / $this->anggaran) * 100 : 0;
+    }
 
     /**
      * Format anggaran untuk display
@@ -137,7 +142,20 @@ class Kegiatan extends Model
             default => 'danger'
         };
     }
-
+    public function scopeForYear($query, $year = null)
+    {
+        $year = $year ?? YearContext::getActiveYear();
+        return $query->where('tahun', $year);
+    }
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (!$model->tahun) {
+                $model->tahun = YearContext::getActiveYear();
+            }
+        });
+    }
     /**
      * Scope untuk filter berdasarkan program
      */

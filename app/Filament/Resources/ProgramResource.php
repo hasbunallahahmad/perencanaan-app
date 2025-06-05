@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProgramResource\Pages;
 use App\Models\Program;
 use App\Models\Organisasi;
+use App\Services\YearContext;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -27,26 +28,23 @@ use Filament\Infolists\Components\Section;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-class ProgramResource extends Resource
+class ProgramResource extends BaseResource
 {
     protected static ?string $model = Program::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
-
-    protected static ?string $navigationLabel = 'Program';
-
-    protected static ?string $modelLabel = 'Program';
-
-    protected static ?string $pluralModelLabel = 'Program';
-
     protected static ?string $navigationGroup = 'Master Data';
-
+    protected static ?string $navigationLabel = 'Program';
+    protected static ?string $modelLabel = 'Program';
+    protected static ?string $pluralModelLabel = 'Program';
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                Forms\Components\Hidden::make('tahun')
+                    ->default(YearContext::getActiveYear()),
                 Forms\Components\Section::make('Informasi Program')
                     ->description('Masukkan detail program')
                     ->schema([

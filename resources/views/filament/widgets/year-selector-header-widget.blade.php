@@ -1,6 +1,6 @@
 <x-filament-widgets::widget>
     <x-filament::section class="bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800">
-        <div class="flex items-center justify-between">
+        {{-- <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="p-2 bg-primary-100 dark:bg-primary-900 rounded-lg">
                     <x-heroicon-o-calendar class="w-6 h-6 text-primary-600 dark:text-primary-400" />
@@ -15,10 +15,10 @@
                     </p>
                 </div>
             </div>
-
+            {{-- 
             <div>
                 {{ $this->yearSelectorAction }}
-            </div>
-        </div>
+            </div> 
+        </div> --}}
     </x-filament::section>
 </x-filament-widgets::widget>

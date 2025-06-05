@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\YearContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,12 +45,28 @@ class SubKegiatan extends Model
     {
         return 'id_sub_kegiatan';
     }
-
     public function kegiatan(): BelongsTo
     {
         return $this->belongsTo(Kegiatan::class, 'id_kegiatan', 'id_kegiatan');
     }
-
+    public function scopeForYear($query, $year = null)
+    {
+        $year = $year ?? YearContext::getActiveYear();
+        return $query->where('tahun', $year);
+    }
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (!$model->tahun) {
+                $model->tahun = YearContext::getActiveYear();
+            }
+        });
+    }
+    public function getPersentaseRealisasiAttribute()
+    {
+        return $this->anggaran > 0 ? ($this->realisasi / $this->anggaran) * 100 : 0;
+    }
     public function getPersentaseSerapanAttribute()
     {
         if (($this->anggaran ?? 0) == 0) {
@@ -59,7 +76,6 @@ class SubKegiatan extends Model
         $serapan = (($this->realisasi ?? 0) / $this->anggaran) * 100;
         return round($serapan, 2);
     }
-
     public function program()
     {
         return $this->hasOneThrough(
@@ -71,15 +87,10 @@ class SubKegiatan extends Model
             'id'
         );
     }
-
     public function getOrganisasiAttribute()
     {
         return $this->kegiatan->program->organisasi;
     }
-
-    /**
-     * Accessor untuk mendapatkan sumber dana sebagai string (untuk display)
-     */
     public function getSumberDanaStringAttribute(): string
     {
         if (is_array($this->sumber_dana) && !empty($this->sumber_dana)) {

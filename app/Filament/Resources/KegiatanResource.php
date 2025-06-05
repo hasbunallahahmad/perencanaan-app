@@ -6,6 +6,7 @@ use App\Filament\Resources\KegiatanResource\Pages;
 use App\Filament\Resources\KegiatanResource\RelationManagers;
 use App\Models\Kegiatan;
 use App\Models\Program;
+use App\Services\YearContext;
 use Filament\Forms;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
@@ -24,7 +25,7 @@ use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Filters\SelectFilter;
 
-class KegiatanResource extends Resource
+class KegiatanResource extends BaseResource
 {
     protected static ?string $model = Kegiatan::class;
 
@@ -42,6 +43,8 @@ class KegiatanResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Hidden::make('tahun')
+                    ->default(YearContext::getActiveYear()),
                 Forms\Components\Section::make('Data Kegiatan')
                     ->schema([
                         TextInput::make('kode_kegiatan')
