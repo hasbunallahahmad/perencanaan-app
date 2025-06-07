@@ -15,6 +15,7 @@ use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\CapaianKinerja as CapaianKinerjaModel;
+use Carbon\Carbon;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Grid;
@@ -38,6 +39,38 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
   protected static ?string $pluralModelLabel = 'Realisasi Sub Kegiatan';
   protected static ?int $navigationSort = 3;
 
+  private function canAccessQuarter(int $quarter): bool
+  {
+    $currentMonth = Carbon::now()->month;
+    return match ($quarter) {
+      1 => $currentMonth >= 1 && $currentMonth <= 3,   // Januari - Maret
+      2 => $currentMonth >= 4 && $currentMonth <= 6,   // April - Juni
+      3 => $currentMonth >= 7 && $currentMonth <= 9,   // Juli - September
+      4 => $currentMonth >= 10 && $currentMonth <= 12, // Oktober - Desember
+      default => false
+    };
+  }
+  private function getQuarterMonths(int $quarter): string
+  {
+    return match ($quarter) {
+      1 => 'Januari - Maret',
+      2 => 'April - Juni',
+      3 => 'Juli - September',
+      4 => 'Oktober - Desember',
+      default => ''
+    };
+  }
+  private function isPastQuarter(int $quarter): bool
+  {
+    $currentMonth = Carbon::now()->month;
+    return match ($quarter) {
+      1 => $currentMonth > 3,
+      2 => $currentMonth > 6,
+      3 => $currentMonth > 9,
+      4 => false,
+      default => false
+    };
+  }
   public function table(Table $table): Table
   {
     return $table
@@ -202,11 +235,16 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
                     if ($record->tw1 > 0) {
                       return 'TW 1 sudah terkunci karena sudah diinput';
                     }
-                    return 'Realisasi Triwulan 1';
+                    if (!$this->canAccessQuarter(1) && $this->isPastQuarter(1)) {
+                      return 'Periode TW 1 (' . $this->getQuarterMonths(1) . ') sudah terlewat';
+                    }
+                    if (!$this->canAccessQuarter(1)) {
+                      return 'TW 1 hanya dapat diisi pada periode ' . $this->getQuarterMonths(1);
+                    }
+                    return 'Realisasi Triwulan 1 (' . $this->getQuarterMonths(1) . ')';
                   })
                   ->disabled(function ($record) {
-                    // Disable jika sudah ada nilai dan persentase belum 100%
-                    return $record->tw1 > 0;
+                    return $record->tw1 > 0 || !$this->canAccessQuarter(1);
                   })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
@@ -220,10 +258,16 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
                     if ($record->tw2 > 0) {
                       return 'TW 2 sudah terkunci karena sudah diinput';
                     }
-                    return 'Realisasi Triwulan 2';
+                    if (!$this->canAccessQuarter(2) && $this->isPastQuarter(2)) {
+                      return 'Periode TW 2 (' . $this->getQuarterMonths(2) . ') sudah terlewat';
+                    }
+                    if (!$this->canAccessQuarter(2)) {
+                      return 'TW 2 hanya dapat diisi pada periode ' . $this->getQuarterMonths(2);
+                    }
+                    return 'Realisasi Triwulan 2 (' . $this->getQuarterMonths(2) . ')';
                   })
                   ->disabled(function ($record) {
-                    return $record->tw2 > 0;
+                    return $record->tw2 > 0 || !$this->canAccessQuarter(2);
                   })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
@@ -237,10 +281,16 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
                     if ($record->tw3 > 0) {
                       return 'TW 3 sudah terkunci karena sudah diinput';
                     }
-                    return 'Realisasi Triwulan 3';
+                    if (!$this->canAccessQuarter(3) && $this->isPastQuarter(3)) {
+                      return 'Periode TW 3 (' . $this->getQuarterMonths(3) . ') sudah terlewat';
+                    }
+                    if (!$this->canAccessQuarter(3)) {
+                      return 'TW 3 hanya dapat diisi pada periode ' . $this->getQuarterMonths(3);
+                    }
+                    return 'Realisasi Triwulan 3 (' . $this->getQuarterMonths(3) . ')';
                   })
                   ->disabled(function ($record) {
-                    return $record->tw3 > 0;
+                    return $record->tw3 > 0 || !$this->canAccessQuarter(3);
                   })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
@@ -254,10 +304,13 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
                     if ($record->tw4 > 0) {
                       return 'TW 4 sudah terkunci karena sudah diinput';
                     }
-                    return 'Realisasi Triwulan 4';
+                    if (!$this->canAccessQuarter(4)) {
+                      return 'TW 4 hanya dapat diisi pada periode ' . $this->getQuarterMonths(4);
+                    }
+                    return 'Realisasi Triwulan 4 (' . $this->getQuarterMonths(4) . ')';
                   })
                   ->disabled(function ($record) {
-                    return $record->tw4 > 0;
+                    return $record->tw4 > 0 || !$this->canAccessQuarter(4);
                   })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
@@ -293,31 +346,45 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
 
             $originalData = $record->toArray();
 
-            if ($originalData['tw1'] > 0) {
+            if ($originalData['tw1'] > 0 || $this->canAccessQuarter(1)) {
               unset($data['tw1']);
             }
 
-            if ($originalData['tw2'] > 0) {
+            if ($originalData['tw2'] > 0 || $this->canAccessQuarter(2)) {
               unset($data['tw2']);
             }
 
-            if ($originalData['tw3'] > 0) {
+            if ($originalData['tw3'] > 0 || $this->canAccessQuarter(3)) {
               unset($data['tw3']);
             }
 
-            if ($originalData['tw4'] > 0) {
+            if ($originalData['tw4'] > 0 || $this->canAccessQuarter(4)) {
               unset($data['tw4']);
             }
 
-            $record->update($data);
-
             Notification::make()
-              ->title('Realisasi kinerja berhasil diperbarui')
+              ->title('Realisasi kinerja program berhasil diperbarui')
               ->success()
               ->send();
+          })
+          ->visible(function ($record) {
+            // Tampilkan action hanya jika ada minimal satu triwulan yang bisa diakses
+            // atau jika masih ada triwulan yang belum diisi
+            $hasAccessibleQuarter = $this->canAccessQuarter(1) ||
+              $this->canAccessQuarter(2) ||
+              $this->canAccessQuarter(3) ||
+              $this->canAccessQuarter(4);
+
+            $hasEmptyQuarter = $record->tw1 == 0 ||
+              $record->tw2 == 0 ||
+              $record->tw3 == 0 ||
+              $record->tw4 == 0;
+
+            return $hasAccessibleQuarter && $hasEmptyQuarter;
           }),
       ])
-      ->defaultSort('created_at', 'desc');
+      ->defaultSort('persentase', 'asc')
+      ->poll();
   }
 
   private function calculateTotalInModal(callable $set, callable $get): void

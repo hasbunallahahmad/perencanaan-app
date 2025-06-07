@@ -24,11 +24,13 @@ class SeksiResource extends Resource
     protected static ?int $navigationSort = 4;
     protected static ?string $modelLabel = 'Seksi';
     protected static ?string $pluralModelLabel = 'Seksi';
+
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
             ->with(['bidang.organisasi']);
     }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -40,17 +42,33 @@ class SeksiResource extends Resource
                     ->searchable()
                     ->preload()
                     ->live()
-                    ->afterStateUpdated(fn(Forms\Set $set) => $set('bidang_id', null)),
+                    ->afterStateUpdated(fn(Forms\Set $set) => $set('bidang_id', null))
+                    ->afterStateHydrated(function (Forms\Components\Select $component, $state, $record) {
+                        // Untuk form edit, set organisasi_id berdasarkan bidang yang dipilih
+                        if ($record && $record->bidang) {
+                            $component->state($record->bidang->organisasi_id);
+                        }
+                    }),
 
                 Forms\Components\Select::make('bidang_id')
                     ->label('Bidang/Sekretariat')
-                    ->options(
-                        fn(Get $get): array =>
-                        Bidang::where('organisasi_id', $get('organisasi_id'))
+                    ->options(function (Get $get, $record): array {
+                        $organisasiId = $get('organisasi_id');
+
+                        // Jika form edit dan belum ada organisasi_id yang dipilih, ambil dari record
+                        if (!$organisasiId && $record && $record->bidang) {
+                            $organisasiId = $record->bidang->organisasi_id;
+                        }
+
+                        if (!$organisasiId) {
+                            return [];
+                        }
+
+                        return Bidang::where('organisasi_id', $organisasiId)
                             ->where('aktif', true)
                             ->pluck('nama', 'id')
-                            ->toArray()
-                    )
+                            ->toArray();
+                    })
                     ->required()
                     ->searchable()
                     ->preload()
@@ -93,14 +111,14 @@ class SeksiResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('bidang.nama')
-                    ->label('Bidang/Sekretariat')
-                    ->searchable()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('nama')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
+                Tables\Columns\TextColumn::make('bidang.nama')
+                    ->label('Bidang/Sekretariat')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('jenis_label')
                     ->badge()
                     ->label('Jenis')
@@ -156,16 +174,19 @@ class SeksiResource extends Resource
             'edit' => Pages\EditSeksi::route('/{record}/edit'),
         ];
     }
+
     public static function getNavigationBadge(): ?string
     {
         return static::getModel()::count();
     }
+
     protected static function getCachedOrganisasi(): array
     {
         return Cache::remember('organisasi_aktif', 300, function () {
             return Organisasi::aktif(true)->pluck('nama', 'id')->toArray();
         });
     }
+
     protected static function getCachedBidangWithOrganisasi(): array
     {
         return Cache::remember('bidang_with_organisasi', 300, function () {
