@@ -5,11 +5,10 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Input Data Perencanaan Kinerja
+                        Perencanaan Kinerja Program
                     </h2>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Masukkan data perencanaan kinerja untuk program, kegiatan, dan sub kegiatan yang akan
-                        dilaksanakan
+                        Kelola target dan perencanaan kinerja kegiatan untuk setiap program
                     </p>
                 </div>
                 <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-lg">
@@ -27,30 +26,35 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
             <div class="p-6 border-b border-gray-200 dark:border-gray-700">
                 <h3 class="text-md font-medium text-gray-900 dark:text-white">
-                    Form Input Perencanaan
+                    Tambah Target Program Baru
                 </h3>
             </div>
             <div class="p-6">
-                {{ $this->form }}
+                <form wire:submit.prevent="save">
+                    {{ $this->form }}
 
-                <div class="mt-6 flex justify-end">
-                    <x-filament::button wire:click="save" color="success">
-                        Simpan
-                    </x-filament::button>
-                </div>
+                    <div class="mt-6 flex justify-end">
+                        <x-filament::button type="submit" color="success">
+                            Simpan
+                        </x-filament::button>
+                    </div>
+                </form>
             </div>
         </div>
 
         <!-- Table Section -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
             <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-md font-medium text-gray-900 dark:text-white">
-                    Daftar Perencanaan Kinerja
-                </h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Daftar perencanaan kinerja yang telah dibuat. Anda dapat mengedit atau menghapus data yang belum
-                    memiliki realisasi.
-                </p>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-md font-medium text-gray-900 dark:text-white">
+                            Daftar Perencanaan Kinerja Program
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Kelola dan pantau semua target Program yang telah direncanakan
+                        </p>
+                    </div>
+                </div>
             </div>
             <div class="p-6">
                 {{ $this->table }}

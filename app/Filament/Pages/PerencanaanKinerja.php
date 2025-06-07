@@ -27,15 +27,14 @@ class PerencanaanKinerja extends Page implements HasForms, HasTable
 {
     use InteractsWithForms;
     use InteractsWithTable;
-
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    // protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
     protected static ?string $navigationGroup = 'Perencanaan';
     protected static string $view = 'filament.pages.perencanaan-kinerja';
     protected static ?string $title = 'Target  SubKegiatan';
     protected static ?string $navigationLabel = 'Target  SubKegiatan';
     protected static ?string $pluralLabel = 'Target  SubKegiatan';
     protected static ?string $pluralModelLabel = 'Target  SubKegiatan';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     public ?array $data = [];
     // Hanya untuk Super Admin

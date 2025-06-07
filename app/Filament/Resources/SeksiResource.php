@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Cache;
 class SeksiResource extends Resource
 {
     protected static ?string $model = Seksi::class;
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
+    // protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
     protected static ?string $navigationGroup = 'Users Management';
     protected static ?int $navigationSort = 4;
     protected static ?string $modelLabel = 'Seksi';

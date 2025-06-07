@@ -3,18 +3,19 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Forms\Contracts\HasForms;
 use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\CapaianKinerja as CapaianKinerjaModel;
+use App\Models\CapaianKinerjaProgram;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Grid;
@@ -24,36 +25,33 @@ use Filament\Forms\Components\Hidden;
 use Filament\Notifications\Notification;
 use Filament\Tables\Filters\SelectFilter;
 
-class RealisasiKinerja extends Page implements HasForms, HasTable
+class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
 {
-  use InteractsWithForms;
   use InteractsWithTable;
-
+  use InteractsWithForms;
   // protected static ?string $navigationIcon = 'heroicon-o-chart-pie';
+  protected static string $view = 'filament.pages.realisasi-kinerja-program';
   protected static ?string $navigationGroup = 'Capaian Kinerja';
-  protected static string $view = 'filament.pages.realisasi-kinerja';
-  protected static ?string $title = 'Realisasi Kinerja';
-  protected static ?string $navigationLabel = 'Realisasi Sub Kegiatan';
-  protected static ?string $pluralLabel = 'Realisasi Sub Kegiatan';
-  protected static ?string $pluralModelLabel = 'Realisasi Sub Kegiatan';
-  protected static ?int $navigationSort = 3;
-
+  protected static ?string $title = 'Realisasi Kinerja Program';
+  protected static ?string $navigationLabel = 'Realisasi Program';
+  protected static ?string $pluralLabel = 'Realisasi Program';
+  protected static ?string $pluralModelLabel = 'Realisasi Program';
+  protected static ?int $navigationSort = 1;
   public function table(Table $table): Table
   {
     return $table
       ->query(
-        CapaianKinerjaModel::query()
-          ->with(['program', 'kegiatan', 'subKegiatan'])
+        CapaianKinerjaProgram::query()->with(['program'])
           ->whereNotNull('target_nilai')
       )
       ->columns([
-        TextColumn::make('subKegiatan.kode_sub_kegiatan')
-          ->label('Kode Sub Kegiatan')
+        TextColumn::make('program.kode_program')
+          ->label('Kode Kegiatan')
           ->sortable()
           ->searchable(),
 
-        TextColumn::make('subKegiatan.nama_sub_kegiatan')
-          ->label('Nama Sub Kegiatan')
+        TextColumn::make('program.nama_program')
+          ->label('Nama Kegiatan')
           ->wrap()
           ->sortable()
           ->searchable(),
@@ -134,7 +132,7 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
 
         SelectFilter::make('tahun')
           ->label('Tahun')
-          ->options(CapaianKinerjaModel::distinct()->pluck('tahun', 'tahun')->sort()),
+          ->options(CapaianKinerjaProgram::distinct()->pluck('tahun', 'tahun')->sort()),
 
         SelectFilter::make('status')
           ->label('Status Pencapaian')
@@ -181,15 +179,14 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
 
             Grid::make(2)
               ->schema([
-                TextInput::make('sub_kegiatan_info')
-                  ->label('Sub Kegiatan')
-                  ->disabled()
-                  ->formatStateUsing(fn($record) => $record->subKegiatan->nama_sub_kegiatan ?? '-'),
-
                 TextInput::make('target_info')
                   ->label('Target')
                   ->disabled()
                   ->formatStateUsing(fn($record) => $record->target_nilai . ' ' . $record->target_dokumen),
+
+                TextInput::make('tahun')
+                  ->label('Tahun')
+                  ->disabled(),
               ]),
 
             Grid::make(4)
@@ -218,11 +215,12 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
                   ->reactive()
                   ->helperText(function ($record) {
                     if ($record->tw2 > 0) {
-                      return 'TW 2 sudah terkunci karena sudah diinput';
+                      return 'TW 1 sudah terkunci karena sudah diinput';
                     }
-                    return 'Realisasi Triwulan 2';
+                    return 'Realisasi Triwulan 1';
                   })
                   ->disabled(function ($record) {
+                    // Disable jika sudah ada nilai dan persentase belum 100%
                     return $record->tw2 > 0;
                   })
                   ->afterStateUpdated(function (callable $set, callable $get) {
@@ -235,11 +233,12 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
                   ->reactive()
                   ->helperText(function ($record) {
                     if ($record->tw3 > 0) {
-                      return 'TW 3 sudah terkunci karena sudah diinput';
+                      return 'TW 1 sudah terkunci karena sudah diinput';
                     }
-                    return 'Realisasi Triwulan 3';
+                    return 'Realisasi Triwulan 1';
                   })
                   ->disabled(function ($record) {
+                    // Disable jika sudah ada nilai dan persentase belum 100%
                     return $record->tw3 > 0;
                   })
                   ->afterStateUpdated(function (callable $set, callable $get) {
@@ -252,11 +251,12 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
                   ->reactive()
                   ->helperText(function ($record) {
                     if ($record->tw4 > 0) {
-                      return 'TW 4 sudah terkunci karena sudah diinput';
+                      return 'TW 1 sudah terkunci karena sudah diinput';
                     }
-                    return 'Realisasi Triwulan 4';
+                    return 'Realisasi Triwulan 1';
                   })
                   ->disabled(function ($record) {
+                    // Disable jika sudah ada nilai dan persentase belum 100%
                     return $record->tw4 > 0;
                   })
                   ->afterStateUpdated(function (callable $set, callable $get) {
@@ -284,7 +284,6 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
             $data = $record->toArray();
             $data['program_info'] = $record->program->nama_program ?? '';
             $data['kegiatan_info'] = $record->kegiatan->nama_kegiatan ?? '';
-            $data['sub_kegiatan_info'] = $record->subKegiatan->nama_sub_kegiatan ?? '';
             $data['target_info'] = $record->target_nilai . ' ' . $record->target_dokumen;
             return $data;
           })
@@ -308,16 +307,16 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
             if ($originalData['tw4'] > 0) {
               unset($data['tw4']);
             }
-
             $record->update($data);
 
             Notification::make()
-              ->title('Realisasi kinerja berhasil diperbarui')
+              ->title('Realisasi kinerja kegiatan berhasil diperbarui')
               ->success()
               ->send();
           }),
       ])
-      ->defaultSort('created_at', 'desc');
+      ->defaultSort('persentase', 'asc') // Prioritas yang persentasenya rendah
+      ->poll(); // Auto refresh setiap beberapa detik
   }
 
   private function calculateTotalInModal(callable $set, callable $get): void

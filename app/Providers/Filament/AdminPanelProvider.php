@@ -79,14 +79,14 @@ class AdminPanelProvider extends PanelProvider
                     ->collapsible(),
                 NavigationGroup::make('Capaian Kinerja')
                     ->label('Capaian Kinerja')
-                    ->icon('heroicon-o-chart-bar')
+                    ->icon('heroicon-o-chart-pie')
                     ->collapsible(),
                 NavigationGroup::make('Users Management')
                     ->label('Users Management')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsible(),
             ])
-            ->sidebarCollapsibleOnDesktop()
+            ->sidebarFullyCollapsibleOnDesktop()
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             // ->databaseNotifications()
             // ->databaseNotificationsPolling('30s')

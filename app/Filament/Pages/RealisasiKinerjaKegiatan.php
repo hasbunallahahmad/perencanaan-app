@@ -24,21 +24,20 @@ class RealisasiKinerjaKegiatan extends Page implements HasForms, HasTable
   use InteractsWithForms;
   use InteractsWithTable;
 
-  protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
+  // protected static ?string $navigationIcon = 'heroicon-o-chart-pie';
   protected static ?string $navigationGroup = 'Capaian Kinerja';
   protected static string $view = 'filament.pages.realisasi-kinerja-kegiatan';
   protected static ?string $title = 'Realisasi Kinerja Kegiatan';
   protected static ?string $navigationLabel = 'Realisasi Kegiatan';
   protected static ?string $pluralLabel = 'Realisasi Kegiatan';
   protected static ?string $pluralModelLabel = 'Realisasi Kegiatan';
-  protected static ?int $navigationSort = 1;
+  protected static ?int $navigationSort = 2;
 
   // Untuk User dan Super Admin
   // public static function canAccess(): bool
   // {
   //   return \Illuminate\Support\Facades\Auth::user()->hasAnyRole(['user', 'super_admin']);
   // }
-
   public function table(Table $table): Table
   {
     return $table
@@ -198,7 +197,16 @@ class RealisasiKinerjaKegiatan extends Page implements HasForms, HasTable
                   ->label('TW 1')
                   ->numeric()
                   ->reactive()
-                  ->helperText('Realisasi Triwulan 1 (Jan-Mar)')
+                  ->helperText(function ($record) {
+                    if ($record->tw1 > 0) {
+                      return 'TW 1 sudah terkunci karena sudah diinput';
+                    }
+                    return 'Realisasi Triwulan 1';
+                  })
+                  ->disabled(function ($record) {
+                    // Disable jika sudah ada nilai dan persentase belum 100%
+                    return $record->tw1 > 0;
+                  })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
                   }),
@@ -207,7 +215,16 @@ class RealisasiKinerjaKegiatan extends Page implements HasForms, HasTable
                   ->label('TW 2')
                   ->numeric()
                   ->reactive()
-                  ->helperText('Realisasi Triwulan 2 (Apr-Jun)')
+                  ->helperText(function ($record) {
+                    if ($record->tw2 > 0) {
+                      return 'TW 1 sudah terkunci karena sudah diinput';
+                    }
+                    return 'Realisasi Triwulan 1';
+                  })
+                  ->disabled(function ($record) {
+                    // Disable jika sudah ada nilai dan persentase belum 100%
+                    return $record->tw2 > 0;
+                  })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
                   }),
@@ -216,7 +233,16 @@ class RealisasiKinerjaKegiatan extends Page implements HasForms, HasTable
                   ->label('TW 3')
                   ->numeric()
                   ->reactive()
-                  ->helperText('Realisasi Triwulan 3 (Jul-Sep)')
+                  ->helperText(function ($record) {
+                    if ($record->tw3 > 0) {
+                      return 'TW 1 sudah terkunci karena sudah diinput';
+                    }
+                    return 'Realisasi Triwulan 1';
+                  })
+                  ->disabled(function ($record) {
+                    // Disable jika sudah ada nilai dan persentase belum 100%
+                    return $record->tw3 > 0;
+                  })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
                   }),
@@ -225,7 +251,16 @@ class RealisasiKinerjaKegiatan extends Page implements HasForms, HasTable
                   ->label('TW 4')
                   ->numeric()
                   ->reactive()
-                  ->helperText('Realisasi Triwulan 4 (Okt-Des)')
+                  ->helperText(function ($record) {
+                    if ($record->tw4 > 0) {
+                      return 'TW 1 sudah terkunci karena sudah diinput';
+                    }
+                    return 'Realisasi Triwulan 1';
+                  })
+                  ->disabled(function ($record) {
+                    // Disable jika sudah ada nilai dan persentase belum 100%
+                    return $record->tw4 > 0;
+                  })
                   ->afterStateUpdated(function (callable $set, callable $get) {
                     $this->calculateTotalInModal($set, $get);
                   }),
@@ -255,8 +290,25 @@ class RealisasiKinerjaKegiatan extends Page implements HasForms, HasTable
             return $data;
           })
           ->action(function (array $data, $record) {
-            unset($data['program_info'], $data['kegiatan_info'], $data['target_info']);
+            unset($data['program_info'], $data['kegiatan_info'], $data['sub_kegiatan_info'], $data['target_info']);
 
+            $originalData = $record->toArray();
+
+            if ($originalData['tw1'] > 0) {
+              unset($data['tw1']);
+            }
+
+            if ($originalData['tw2'] > 0) {
+              unset($data['tw2']);
+            }
+
+            if ($originalData['tw3'] > 0) {
+              unset($data['tw3']);
+            }
+
+            if ($originalData['tw4'] > 0) {
+              unset($data['tw4']);
+            }
             $record->update($data);
 
             Notification::make()

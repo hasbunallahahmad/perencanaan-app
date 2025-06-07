@@ -13,7 +13,7 @@ use Filament\Tables\Table;
 class OrganisasiResource extends Resource
 {
     protected static ?string $model = Organisasi::class;
-    protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
+    // protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
     protected static ?string $navigationGroup = 'Users Management';
     protected static ?string $modelLabel = 'Organisasi';
     protected static ?string $pluralModelLabel = 'Organisasi';

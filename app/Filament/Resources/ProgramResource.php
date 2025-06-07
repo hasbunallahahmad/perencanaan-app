@@ -32,7 +32,7 @@ class ProgramResource extends BaseResource
 {
     protected static ?string $model = Program::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    // protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
     protected static ?string $navigationGroup = 'Master Data';
     protected static ?string $navigationLabel = 'Program';
     protected static ?string $modelLabel = 'Program';

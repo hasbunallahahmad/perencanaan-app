@@ -29,7 +29,7 @@ class SubKegiatanResource extends BaseResource
 {
     protected static ?string $model = SubKegiatan::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    // protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
 
     protected static ?string $navigationLabel = 'Sub Kegiatan';
 
