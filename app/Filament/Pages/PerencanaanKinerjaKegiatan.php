@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Traits\HasYearFilter;
 use Filament\Pages\Page;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -14,6 +15,7 @@ use Filament\Forms\Contracts\HasForms;
 use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\CapaianKinerjaKegiatan as CapaianKinerjaKegiatanModel;
+use App\Services\YearContext;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Grid;
@@ -25,8 +27,16 @@ use Filament\Tables\Filters\SelectFilter;
 
 class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
 {
+  use HasYearFilter;
   use InteractsWithForms;
   use InteractsWithTable;
+  protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder
+  {
+    $selectedYear = $this->data['tahun'] ?? YearContext::getActiveYear();
+    return CapaianKinerjaKegiatanModel::query()
+      ->with(['program', 'kegiatan', 'subKegiatan'])
+      ->where('tahun', YearContext::getActiveYear());
+  }
 
   // protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
   protected static ?string $navigationGroup = 'Perencanaan';
@@ -36,6 +46,11 @@ class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
   protected static ?string $pluralLabel = 'Target Kegiatan';
   protected static ?string $pluralModelLabel = 'Target Kegiatan';
   protected static ?int $navigationSort = 2;
+  // protected static function getYearColumn(): string
+  // {
+  //   return 'tahun'; // atau 'year' sesuai dengan struktur tabel
+
+  // }
 
   public ?array $data = [];
   // Hanya untuk Super Admin
@@ -47,7 +62,7 @@ class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
 
   public function mount(): void
   {
-    $this->form->fill();
+    $this->form->fill(['tahun' => YearContext::getActiveYear()]);
   }
 
   public function form(Form $form): Form
@@ -104,11 +119,8 @@ class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
   public function table(Table $table): Table
   {
     return $table
-      ->query(
-        CapaianKinerjaKegiatanModel::query()->with(['program', 'kegiatan'])
-      )
+      ->query($this->getTableQuery())
       ->columns([
-
         TextColumn::make('kegiatan.kode_kegiatan')
           ->label('Kode Kegiatan')
           ->sortable()
@@ -210,26 +222,26 @@ class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
                   ->label('Satuan')
                   ->required(),
               ]),
-
-            Select::make('status_perencanaan')
-              ->label('Status Perencanaan')
-              ->options([
-                'draft' => 'Draft',
-                'approved' => 'Disetujui',
-              ])
-              ->required(),
+            // Select::make('status_perencanaan')
+            //   ->label('Status Perencanaan')
+            //   ->options([
+            //     'draft' => 'Draft',
+            //     'approved' => 'Disetujui',
+            //   ])
+            //   ->required(),
           ])
-          ->fillForm(function ($record) {
-            return [
-              'id' => $record->id,
-              'program_name' => $record->program->nama_program ?? '-',
-              'kegiatan_name' => $record->kegiatan->nama_kegiatan ?? '-',
-              'tahun' => $record->tahun,
-              'target_nilai' => $record->target_nilai,
-              'target_dokumen' => $record->target_dokumen,
-              'status_perencanaan' => $record->status_perencanaan,
-            ];
-          })
+          // ->fillForm(function ($record) {
+          //   return [
+          //     'id' => $record->id,
+          //     'program_name' => $record->program->nama_program ?? '-',
+          //     'kegiatan_name' => $record->kegiatan->nama_kegiatan ?? '-',
+          //     'tahun' => $record->tahun,
+          //     'target_nilai' => $record->target_nilai,
+          //     'target_dokumen' => $record->target_dokumen,
+          //     'status_perencanaan' => $record->status_perencanaan,
+          //   ];
+          // })
+          ->fillForm(fn($record) => $record->toArray())
           ->action(function (array $data, $record) {
             $record->update($data);
 
@@ -246,6 +258,15 @@ class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
           ->modalHeading('Hapus Data Perencanaan')
           ->modalDescription('Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dikembalikan.')
           ->action(function ($record) {
+            // Check if has realization data
+            if ($record->tw1 || $record->tw2 || $record->tw3 || $record->tw4) {
+              Notification::make()
+                ->title('Tidak dapat menghapus')
+                ->body('Data perencanaan ini sudah memiliki data realisasi')
+                ->danger()
+                ->send();
+              return;
+            }
             $record->delete();
 
             Notification::make()
@@ -254,7 +275,10 @@ class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
               ->send();
           }),
       ])
-      ->defaultSort('created_at', 'desc');
+      ->defaultSort('created_at', 'desc')
+      ->emptyStateHeading('Belum Ada Data Target Kegiatan')
+      ->emptyStateDescription('Silakan tambahkan target kegiatan baru menggunakan form di atas.')
+      ->emptyStateIcon('heroicon-o-document-text');
   }
 
   public function save(): void
@@ -308,5 +332,9 @@ class PerencanaanKinerjaKegiatan extends Page implements HasForms, HasTable
   {
     $model = new CapaianKinerjaKegiatanModel();
     return $model->getPlanningDashboard();
+  }
+  public function refreshTable(): void
+  {
+    $this->resetTable();
   }
 }

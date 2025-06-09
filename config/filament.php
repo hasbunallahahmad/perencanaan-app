@@ -97,5 +97,11 @@ return [
     */
 
     'system_route_prefix' => 'filament',
-
+    'table' => [
+        'pagination' => [
+            'default_records_per_page' => 10,
+            'records_per_page_select_options' => [10, 25, 50],
+        ],
+        'query_timeout' => 30,
+    ],
 ];

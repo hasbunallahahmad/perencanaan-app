@@ -196,13 +196,11 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('organisasi.nama')
                     ->label('Organisasi')
                     ->sortable()
+                    ->wrap()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('bidang.nama')
                     ->label('Bidang')
-                    ->sortable()
-                    ->toggleable(),
-                Tables\Columns\TextColumn::make('seksi.nama')
-                    ->label('Seksi')
+                    ->wrap()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\IconColumn::make('email_verified_at')

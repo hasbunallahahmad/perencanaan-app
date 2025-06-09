@@ -5,10 +5,10 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Input Data Perencanaan Kinerja
+                        Input Data Perencanaan Kinerja SubKegiatan
                     </h2>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Masukkan data perencanaan kinerja untuk program, kegiatan, dan sub kegiatan yang akan
+                        Masukkan data perencanaan kinerja untuk sub kegiatan yang akan
                         dilaksanakan
                     </p>
                 </div>

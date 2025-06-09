@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Traits\HasYearFilter;
 use Filament\Pages\Page;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Contracts\HasTable;
@@ -16,6 +17,7 @@ use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\CapaianKinerja as CapaianKinerjaModel;
 use App\Models\CapaianKinerjaProgram;
+use App\Services\YearContext;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Grid;
@@ -28,6 +30,7 @@ use Carbon\Carbon;
 
 class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
 {
+  use HasYearFilter;
   use InteractsWithTable;
   use InteractsWithForms;
 
@@ -38,10 +41,17 @@ class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
   protected static ?string $pluralLabel = 'Realisasi Program';
   protected static ?string $pluralModelLabel = 'Realisasi Program';
   protected static ?int $navigationSort = 1;
+  public ?array $data = [];
+  protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder
+  {
+    $selectedYear = YearContext::getActiveYear();
 
-  /**
-   * Cek apakah triwulan tertentu dapat diakses berdasarkan bulan saat ini
-   */
+    return CapaianKinerjaProgram::query()
+      ->with(['program'])
+      ->where('tahun', $selectedYear)
+      ->whereNotNull('target_nilai');
+  }
+
   private function canAccessQuarter(int $quarter): bool
   {
     $currentMonth = Carbon::now()->month;
@@ -54,10 +64,6 @@ class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
       default => false
     };
   }
-
-  /**
-   * Mendapatkan nama bulan untuk triwulan
-   */
   private function getQuarterMonths(int $quarter): string
   {
     return match ($quarter) {
@@ -68,10 +74,6 @@ class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
       default => ''
     };
   }
-
-  /**
-   * Cek apakah sudah melewati periode triwulan
-   */
   private function isPastQuarter(int $quarter): bool
   {
     $currentMonth = Carbon::now()->month;
@@ -84,14 +86,14 @@ class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
       default => false
     };
   }
-
+  public function mount(): void
+  {
+    // $this->form->fill(['tahun' => YearContext::getActiveYear()]);
+  }
   public function table(Table $table): Table
   {
     return $table
-      ->query(
-        CapaianKinerjaProgram::query()->with(['program'])
-          ->whereNotNull('target_nilai')
-      )
+      ->query($this->getTableQuery())
       ->columns([
         TextColumn::make('program.kode_program')
           ->label('Kode Program')
@@ -177,10 +179,6 @@ class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
           ->label('Program')
           ->options(Program::pluck('nama_program', 'id_program'))
           ->searchable(),
-
-        SelectFilter::make('tahun')
-          ->label('Tahun')
-          ->options(CapaianKinerjaProgram::distinct()->pluck('tahun', 'tahun')->sort()),
 
         SelectFilter::make('status')
           ->label('Status Pencapaian')
@@ -399,6 +397,9 @@ class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
           }),
       ])
       ->defaultSort('persentase', 'asc')
+      ->emptyStateHeading('Belum Ada Data Target Program')
+      ->emptyStateDescription('Silakan tambahkan target baru pada Menu Target Program.')
+      ->emptyStateIcon('heroicon-o-document-text')
       ->poll();
   }
 
@@ -419,5 +420,13 @@ class RealisasiKinerjaProgram extends Page implements HasTable, HasForms
     } else {
       $set('persentase', 0);
     }
+  }
+  public function getActiveYear(): int
+  {
+    return YearContext::getActiveYear();
+  }
+  public function refreshTable(): void
+  {
+    $this->resetTable();
   }
 }

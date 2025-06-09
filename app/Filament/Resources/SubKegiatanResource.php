@@ -8,6 +8,7 @@ use App\Models\SubKegiatan;
 use App\Models\Kegiatan;
 use App\Models\Program;
 use App\Services\YearContext;
+use App\Traits\HasYearFilter;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -40,6 +41,15 @@ class SubKegiatanResource extends BaseResource
 
     protected static ?int $navigationSort = 3;
 
+    use HasYearFilter;
+    protected static function getTableQuery(): Builder
+    {
+        return parent::getTableQuery()->where('tahun', YearContext::getActiveYear());
+    }
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('tahun', YearContext::getActiveYear());
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -352,10 +362,10 @@ class SubKegiatanResource extends BaseResource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count();
-    }
+    // public static function getNavigationBadge(): ?string
+    // {
+    //     return static::getModel()::count();
+    // }
 
     public static function getGloballySearchableAttributes(): array
     {

@@ -5,8 +5,10 @@ namespace App\Models;
 use App\Services\YearContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Program extends Model
 {
@@ -22,66 +24,124 @@ class Program extends Model
         'nama_program',
         'organisasi_id',
         'deskripsi',
+        'tahun',
     ];
+
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
+
     protected $appends = [
         'total_anggaran',
         'total_realisasi',
         'persentase_serapan',
         'formatted_anggaran',
-        'formatted_realisasi'
+        'formatted_realisasi',
+        'total_kegiatan',
+        'total_sub_kegiatan',
+        'kategori',
+        'badge_color'
     ];
-    public function organisasi()
+
+    // ========== RELATIONSHIPS ==========
+    public function organisasi(): BelongsTo
     {
         return $this->belongsTo(Organisasi::class, 'organisasi_id', 'id');
     }
-    public function kegiatan()
+
+    public function kegiatan(): HasMany
     {
         return $this->hasMany(Kegiatan::class, 'id_program', 'id_program');
     }
-    public function subKegiatan()
+
+    public function subKegiatan(): HasManyThrough
     {
         return $this->hasManyThrough(
             SubKegiatan::class,
             Kegiatan::class,
-            'id_program',
-            'id_kegiatan',
-            'id_program',
-            'id_kegiatan'
+            'id_program',        // Foreign key on kegiatan table
+            'id_kegiatan',       // Foreign key on sub_kegiatan table
+            'id_program',        // Local key on program table
+            'id_kegiatan'        // Local key on kegiatan table
         );
     }
-    public function scopeForYear($query, $year = null)
-    {
-        $year = $year ?? YearContext::getActiveYear();
-        return $query->where('tahun', $year);
-    }
-    protected static function boot()
-    {
-        parent::boot();
-        static::creating(function ($model) {
-            if (!$model->tahun) {
-                $model->tahun = YearContext::getActiveYear();
-            }
-        });
-    }
+
+    // ========== OPTIMIZED ACCESSORS ==========
     public function getTotalAnggaranAttribute(): int
     {
-        return $this->kegiatan()->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+        // Priority 1: Jika sudah ada dari select query
+        if (isset($this->attributes['total_anggaran_calculated'])) {
+            return (int) $this->attributes['total_anggaran_calculated'];
+        }
+
+        // Priority 2: Jika relasi subKegiatan sudah di-load
+        if ($this->relationLoaded('subKegiatan')) {
+            return $this->subKegiatan->sum('anggaran');
+        }
+
+        // Priority 3: Fallback ke query (seperti kode asli Anda)
+        return $this->kegiatan()
+            ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
             ->sum('sub_kegiatan.anggaran') ?? 0;
     }
+
     public function getTotalRealisasiAttribute(): int
     {
-        return $this->kegiatan()->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+        // Priority 1: Jika sudah ada dari select query
+        if (isset($this->attributes['total_realisasi_calculated'])) {
+            return (int) $this->attributes['total_realisasi_calculated'];
+        }
+
+        // Priority 2: Jika relasi subKegiatan sudah di-load
+        if ($this->relationLoaded('subKegiatan')) {
+            return $this->subKegiatan->sum('realisasi');
+        }
+
+        // Priority 3: Fallback ke query (seperti kode asli Anda)
+        return $this->kegiatan()
+            ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
             ->sum('sub_kegiatan.realisasi') ?? 0;
     }
+
+    public function getTotalKegiatanAttribute(): int
+    {
+        // Priority 1: Jika sudah ada dari withCount
+        if (isset($this->attributes['kegiatan_count'])) {
+            return (int) $this->attributes['kegiatan_count'];
+        }
+
+        // Priority 2: Jika relasi kegiatan sudah di-load
+        if ($this->relationLoaded('kegiatan')) {
+            return $this->kegiatan->count();
+        }
+
+        // Priority 3: Fallback ke query
+        return $this->kegiatan()->count();
+    }
+
+    public function getTotalSubKegiatanAttribute(): int
+    {
+        // Priority 1: Jika sudah ada dari select query
+        if (isset($this->attributes['total_sub_kegiatan_calculated'])) {
+            return (int) $this->attributes['total_sub_kegiatan_calculated'];
+        }
+
+        // Priority 2: Jika relasi sudah di-load
+        if ($this->relationLoaded('subKegiatan')) {
+            return $this->subKegiatan->count();
+        }
+
+        // Priority 3: Fallback ke query
+        return $this->subKegiatan()->count();
+    }
+
     public function getPersentaseRealisasiAttribute()
     {
         return $this->anggaran > 0 ? ($this->realisasi / $this->anggaran) * 100 : 0;
     }
+
     public function getPersentaseSerapanAttribute(): float
     {
         $totalAnggaran = $this->total_anggaran;
@@ -93,74 +153,35 @@ class Program extends Model
 
         return 0;
     }
+
     public function getFormattedAnggaranAttribute(): string
     {
         return 'Rp ' . number_format($this->total_anggaran, 0, ',', '.');
     }
+
     public function getFormattedRealisasiAttribute(): string
     {
         return 'Rp ' . number_format($this->total_realisasi, 0, ',', '.');
     }
-    public function getTotalKegiatanAttribute(): int
-    {
-        return $this->kegiatan()->count();
-    }
-    public function getTotalSubKegiatanAttribute(): int
-    {
-        return $this->subKegiatan()->count();
-    }
-    public function scopeByKode($query, string $kode)
-    {
-        return $query->where('kode_program', $kode);
-    }
-    public function scopeByOrganisasi($query, int $organisasiId)
-    {
-        return $query->where('organisasi_id', $organisasiId);
-    }
-    public function scopeHasKegiatan($query)
-    {
-        return $query->has('kegiatan');
-    }
-    public function scopePenunjang($query)
-    {
-        return $query->where('kode_program', 'like', '2.08.01%');
-    }
-    public function scopePug($query)
-    {
-        return $query->where('kode_program', 'like', '2.08.02%');
-    }
-    public function scopeAnak($query)
-    {
-        return $query->where(function ($q) {
-            $q->where('kode_program', 'like', '2.08.06%')
-                ->orWhere('kode_program', 'like', '2.08.07%');
-        });
-    }
+
     public function getKategoriAttribute(): string
     {
         $kode = $this->kode_program;
 
-        if (str_starts_with($kode, '2.08.01')) {
-            return 'Program Penunjang';
-        } elseif (str_starts_with($kode, '2.08.02')) {
-            return 'PUG & Pemberdayaan Perempuan';
-        } elseif (str_starts_with($kode, '2.08.03')) {
-            return 'Perlindungan Perempuan';
-        } elseif (str_starts_with($kode, '2.08.04')) {
-            return 'Peningkatan Kualitas Keluarga';
-        } elseif (str_starts_with($kode, '2.08.05')) {
-            return 'Data Gender dan Anak';
-        } elseif (str_starts_with($kode, '2.08.06')) {
-            return 'Pemenuhan Hak Anak';
-        } elseif (str_starts_with($kode, '2.08.07')) {
-            return 'Perlindungan Khusus Anak';
-        } elseif (str_starts_with($kode, '2.13.04')) {
-            return 'Administrasi Pemerintahan Desa';
-        } elseif (str_starts_with($kode, '2.13.05')) {
-            return 'Pemberdayaan Lembaga Kemasyarakatan';
-        }
-        return 'Lainnya';
+        return match (true) {
+            str_starts_with($kode, '2.08.01') => 'Program Penunjang',
+            str_starts_with($kode, '2.08.02') => 'PUG & Pemberdayaan Perempuan',
+            str_starts_with($kode, '2.08.03') => 'Perlindungan Perempuan',
+            str_starts_with($kode, '2.08.04') => 'Peningkatan Kualitas Keluarga',
+            str_starts_with($kode, '2.08.05') => 'Data Gender dan Anak',
+            str_starts_with($kode, '2.08.06') => 'Pemenuhan Hak Anak',
+            str_starts_with($kode, '2.08.07') => 'Perlindungan Khusus Anak',
+            str_starts_with($kode, '2.13.04') => 'Administrasi Pemerintahan Desa',
+            str_starts_with($kode, '2.13.05') => 'Pemberdayaan Lembaga Kemasyarakatan',
+            default => 'Lainnya',
+        };
     }
+
     public function getBadgeColorAttribute(): string
     {
         return match ($this->kategori) {
@@ -176,6 +197,93 @@ class Program extends Model
             default => 'gray',
         };
     }
+
+    // ========== SCOPES ==========
+    public function scopeForYear($query, $year = null)
+    {
+        $year = $year ?? YearContext::getActiveYear();
+        return $query->where('tahun', $year);
+    }
+
+    public function scopeByKode($query, string $kode)
+    {
+        return $query->where('kode_program', $kode);
+    }
+
+    public function scopeByOrganisasi($query, int $organisasiId)
+    {
+        return $query->where('organisasi_id', $organisasiId);
+    }
+
+    public function scopeHasKegiatan($query)
+    {
+        return $query->has('kegiatan');
+    }
+
+    public function scopePenunjang($query)
+    {
+        return $query->where('kode_program', 'like', '2.08.01%');
+    }
+
+    public function scopePug($query)
+    {
+        return $query->where('kode_program', 'like', '2.08.02%');
+    }
+
+    public function scopeAnak($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('kode_program', 'like', '2.08.06%')
+                ->orWhere('kode_program', 'like', '2.08.07%');
+        });
+    }
+
+    // ========== OPTIMIZATION SCOPES ==========
+    public function scopeWithCalculatedTotals($query)
+    {
+        return $query->selectRaw('
+            program.*,
+            COALESCE(
+                (SELECT SUM(sk.anggaran) 
+                 FROM kegiatan k 
+                 JOIN sub_kegiatan sk ON k.id_kegiatan = sk.id_kegiatan 
+                 WHERE k.id_program = program.id_program), 0
+            ) as total_anggaran_calculated,
+            COALESCE(
+                (SELECT SUM(sk.realisasi) 
+                 FROM kegiatan k 
+                 JOIN sub_kegiatan sk ON k.id_kegiatan = sk.id_kegiatan 
+                 WHERE k.id_program = program.id_program), 0
+            ) as total_realisasi_calculated,
+            COALESCE(
+                (SELECT COUNT(sk.id_sub_kegiatan) 
+                 FROM kegiatan k 
+                 JOIN sub_kegiatan sk ON k.id_kegiatan = sk.id_kegiatan 
+                 WHERE k.id_program = program.id_program), 0
+            ) as total_sub_kegiatan_calculated
+        ');
+    }
+
+    public function scopeWithFullData($query)
+    {
+        return $query->with(['organisasi'])
+            ->withCount(['kegiatan'])
+            ->withCalculatedTotals();
+    }
+
+    // ========== BOOT METHOD ==========
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (!$model->tahun) {
+                $model->tahun = YearContext::getActiveYear();
+            }
+        });
+    }
+
+    // ========== STATIC METHODS ==========
     public static function getStatistics(): array
     {
         return [

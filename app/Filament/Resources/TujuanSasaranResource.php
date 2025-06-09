@@ -6,7 +6,10 @@ use App\Filament\Resources\TujuanSasaranResource\Pages;
 use App\Filament\Resources\TujuanSasaranResource\RelationManagers;
 use App\Models\Tujas;
 use App\Models\TujuanSasaran;
+use App\Services\YearContext;
+use App\Traits\HasYearFilter;
 use Carbon\Carbon;
+use Faker\Provider\Base;
 use Filament\Forms;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Form;
@@ -18,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use PhpParser\Node\Stmt\Label;
 use Filament\Notifications\Notification;
 
-class TujuanSasaranResource extends Resource
+class TujuanSasaranResource extends BaseResource
 {
     protected static ?string $model = Tujas::class;
     protected static ?string $navigationGroup = 'Capaian Kinerja';
@@ -26,7 +29,11 @@ class TujuanSasaranResource extends Resource
     protected static ?string $navigationLabel = 'Tujuan & Sasaran';
     protected static ?string $modelLabel = 'Tujuan & Sasaran';
     protected static ?string $pluralModelLabel = 'Tujuan & Sasaran';
-
+    use HasYearFilter;
+    // protected static function getYearColumn(): string
+    // {
+    //     return 'tahun'; // atau 'year' sesuai dengan struktur tabel
+    // }
     private function canAccessQuarter(int $quarter): bool
     {
         $currentMonth = Carbon::now()->month;
@@ -78,7 +85,19 @@ class TujuanSasaranResource extends Resource
             $set('persentase_preview', '0%');
         }
     }
-
+    use HasYearFilter;
+    protected static function getTableQuery(): Builder
+    {
+        return parent::getTableQuery()->where('tahun', YearContext::getActiveYear());
+    }
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ])
+            ->where('tahun', YearContext::getActiveYear());
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -510,13 +529,5 @@ class TujuanSasaranResource extends Resource
             'view' => Pages\ViewTujuanSasaran::route('/{record}'),
             'edit' => Pages\EditTujuanSasaran::route('/{record}/edit'),
         ];
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes([
-                SoftDeletingScope::class,
-            ]);
     }
 }

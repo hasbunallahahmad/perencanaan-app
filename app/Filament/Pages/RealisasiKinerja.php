@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\CapaianKinerja;
+use App\Traits\HasYearFilter;
 use Filament\Pages\Page;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -15,6 +17,7 @@ use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\CapaianKinerja as CapaianKinerjaModel;
+use App\Services\YearContext;
 use Carbon\Carbon;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -27,6 +30,7 @@ use Filament\Tables\Filters\SelectFilter;
 
 class RealisasiKinerja extends Page implements HasForms, HasTable
 {
+  use HasYearFilter;
   use InteractsWithForms;
   use InteractsWithTable;
 
@@ -39,6 +43,15 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
   protected static ?string $pluralModelLabel = 'Realisasi Sub Kegiatan';
   protected static ?int $navigationSort = 3;
 
+  protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder
+  {
+    $selectedYear = YearContext::getActiveYear();
+
+    return CapaianKinerja::query()
+      ->with(['program'])
+      ->where('tahun', $selectedYear)
+      ->whereNotNull('target_nilai');
+  }
   private function canAccessQuarter(int $quarter): bool
   {
     $currentMonth = Carbon::now()->month;
@@ -71,14 +84,14 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
       default => false
     };
   }
+  public function mount(): void
+  {
+    // $this->form->fill(['tahun' => YearContext::getActiveYear()]);
+  }
   public function table(Table $table): Table
   {
     return $table
-      ->query(
-        CapaianKinerjaModel::query()
-          ->with(['program', 'kegiatan', 'subKegiatan'])
-          ->whereNotNull('target_nilai')
-      )
+      ->query($this->getTableQuery())
       ->columns([
         TextColumn::make('subKegiatan.kode_sub_kegiatan')
           ->label('Kode Sub Kegiatan')
@@ -164,10 +177,6 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
           ->label('Program')
           ->options(Program::pluck('nama_program', 'id_program'))
           ->searchable(),
-
-        SelectFilter::make('tahun')
-          ->label('Tahun')
-          ->options(CapaianKinerjaModel::distinct()->pluck('tahun', 'tahun')->sort()),
 
         SelectFilter::make('status')
           ->label('Status Pencapaian')
@@ -384,6 +393,9 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
           }),
       ])
       ->defaultSort('persentase', 'asc')
+      ->emptyStateHeading('Belum Ada Data Target SubKegiatan')
+      ->emptyStateDescription('Silakan tambahkan target baru pada Menu Target SubKegiatan.')
+      ->emptyStateIcon('heroicon-o-document-text')
       ->poll();
   }
 
@@ -404,5 +416,13 @@ class RealisasiKinerja extends Page implements HasForms, HasTable
     } else {
       $set('persentase', 0);
     }
+  }
+  public function getActiveYear(): int
+  {
+    return YearContext::getActiveYear();
+  }
+  public function refreshTable(): void
+  {
+    $this->resetTable();
   }
 }

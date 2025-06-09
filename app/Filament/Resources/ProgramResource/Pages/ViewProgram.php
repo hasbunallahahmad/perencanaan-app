@@ -17,16 +17,13 @@ class ViewProgram extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\EditAction::make()
-                ->label('Edit')
-                ->icon('heroicon-o-pencil'),
-        ];
-    }
+            Actions\Action::make('back')
+                ->label('Kembali')
+                ->icon('heroicon-o-arrow-left')
+                ->color('gray')
+                ->url($this->getResource()::getUrl('index')),
 
-    protected function getHeaderWidgets(): array
-    {
-        return [
-            ProgramStatsWidget::class,
+            Actions\EditAction::make(),
         ];
     }
 }

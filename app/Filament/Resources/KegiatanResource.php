@@ -7,6 +7,7 @@ use App\Filament\Resources\KegiatanResource\RelationManagers;
 use App\Models\Kegiatan;
 use App\Models\Program;
 use App\Services\YearContext;
+use App\Traits\HasYearFilter;
 use Filament\Forms;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
@@ -38,7 +39,15 @@ class KegiatanResource extends BaseResource
     protected static ?string $navigationGroup = 'Master Data';
 
     protected static ?int $navigationSort = 2;
-
+    use HasYearFilter;
+    protected static function getTableQuery(): Builder
+    {
+        return parent::getTableQuery()->where('tahun', YearContext::getActiveYear());
+    }
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('tahun', YearContext::getActiveYear());
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -222,10 +231,10 @@ class KegiatanResource extends BaseResource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count();
-    }
+    // public static function getNavigationBadge(): ?string
+    // {
+    //     return static::getModel()::count();
+    // }
 
     public static function getGloballySearchableAttributes(): array
     {

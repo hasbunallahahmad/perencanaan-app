@@ -6,6 +6,7 @@ use App\Filament\Resources\ProgramResource\Pages;
 use App\Models\Program;
 use App\Models\Organisasi;
 use App\Services\YearContext;
+use App\Traits\HasYearFilter;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -39,6 +40,15 @@ class ProgramResource extends BaseResource
     protected static ?string $pluralModelLabel = 'Program';
     protected static ?int $navigationSort = 1;
 
+    use HasYearFilter;
+    protected static function getTableQuery(): Builder
+    {
+        return parent::getTableQuery()->where('tahun', YearContext::getActiveYear());
+    }
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('tahun', YearContext::getActiveYear());
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -162,12 +172,6 @@ class ProgramResource extends BaseResource
                         return strlen($state) > 80 ? $state : null;
                     }),
 
-                TextColumn::make('kategori')
-                    ->label('Kategori')
-                    ->badge()
-                    ->color(fn($record) => $record->badge_color)
-                    ->sortable(),
-
                 TextColumn::make('total_anggaran')
                     ->label('Total Anggaran')
                     ->getStateUsing(function (Program $record): int {
@@ -227,22 +231,6 @@ class ProgramResource extends BaseResource
                         };
                     }),
 
-                TextColumn::make('kegiatan_count')
-                    ->label('Jumlah Kegiatan')
-                    ->counts('kegiatan')
-                    ->alignCenter()
-                    ->badge()
-                    ->color('success'),
-
-                TextColumn::make('sub_kegiatan_count')
-                    ->label('Sub Kegiatan')
-                    ->getStateUsing(function (Program $record): int {
-                        return $record->total_sub_kegiatan;
-                    })
-                    ->alignCenter()
-                    ->badge()
-                    ->color('info'),
-
                 TextColumn::make('created_at')
                     ->label('Dibuat')
                     ->dateTime('d M Y H:i')
@@ -256,12 +244,6 @@ class ProgramResource extends BaseResource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('organisasi')
-                    ->relationship('organisasi', 'nama')
-                    ->searchable()
-                    ->preload()
-                    ->multiple(),
-
                 SelectFilter::make('kategori')
                     ->options([
                         'Program Penunjang' => 'Program Penunjang',
@@ -473,10 +455,7 @@ class ProgramResource extends BaseResource
 
     public static function getRelations(): array
     {
-        return [
-            // Tambahkan relation manager jika diperlukan
-            // KegiatanRelationManager::class,
-        ];
+        return [];
     }
 
     public static function getPages(): array
@@ -487,16 +466,6 @@ class ProgramResource extends BaseResource
             'edit' => Pages\EditProgram::route('/{record}/edit'),
             'view' => Pages\ViewProgram::route('/{record}'),
         ];
-    }
-
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count();
-    }
-
-    public static function getNavigationBadgeColor(): string|array|null
-    {
-        return 'primary';
     }
 
     public static function getGlobalSearchEloquentQuery(): Builder
