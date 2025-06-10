@@ -6,6 +6,7 @@ use App\Filament\Resources\KegiatanResource\Pages;
 use App\Filament\Resources\KegiatanResource\RelationManagers;
 use App\Models\Kegiatan;
 use App\Models\Program;
+use App\Models\MasterIndikator; // Tambahkan import ini
 use App\Services\YearContext;
 use App\Traits\HasYearFilter;
 use Filament\Forms;
@@ -25,6 +26,7 @@ use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Validation\Rules\Unique;
 
 class KegiatanResource extends BaseResource
 {
@@ -40,27 +42,38 @@ class KegiatanResource extends BaseResource
 
     protected static ?int $navigationSort = 2;
     use HasYearFilter;
+
     protected static function getTableQuery(): Builder
     {
         return parent::getTableQuery()->where('tahun', YearContext::getActiveYear());
     }
+
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->where('tahun', YearContext::getActiveYear());
     }
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Hidden::make('tahun')
                     ->default(YearContext::getActiveYear()),
+
                 Forms\Components\Section::make('Data Kegiatan')
                     ->schema([
                         TextInput::make('kode_kegiatan')
                             ->label('Kode Kegiatan')
                             ->required()
                             ->maxLength(50)
-                            ->unique(ignoreRecord: true)
+                            ->unique(
+                                table: 'kegiatan',
+                                column: 'kode_kegiatan',
+                                ignoreRecord: true,
+                                modifyRuleUsing: function (Unique $rule) {
+                                    return $rule->where('tahun', YearContext::getActiveYear());
+                                }
+                            )
                             ->placeholder('Contoh: 2.08.01.2.01'),
 
                         TextInput::make('nama_kegiatan')
@@ -72,18 +85,43 @@ class KegiatanResource extends BaseResource
                         Select::make('id_program')
                             ->label('Program')
                             ->options(function () {
-                                return Program::with('organisasi')
-                                    ->get()
-                                    ->mapWithKeys(function ($program) {
-                                        return [$program->id => $program->kode_program . ' - ' . $program->nama_program];
-                                    });
+                                return Program::where('tahun', YearContext::getActiveYear())
+                                    ->pluck('nama_program', 'id_program');
                             })
                             ->required()
                             ->searchable()
                             ->placeholder('Pilih program')
                             ->getOptionLabelFromRecordUsing(fn(Program $record) => "{$record->kode_program} - {$record->nama_program}"),
+
+                        Select::make('indikator_id')
+                            ->label('Indikator Kegiatan')
+                            ->relationship('indikator', 'nama_indikator')
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->placeholder('Pilih indikator untuk kegiatan ini')
+                            ->helperText('Indikator yang akan digunakan untuk mengukur kinerja kegiatan')
+                            ->createOptionForm([
+                                TextInput::make('nama_indikator')
+                                    ->label('Nama Indikator')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->placeholder('Masukkan nama indikator baru'),
+                            ])
+                            ->createOptionUsing(function (array $data) {
+                                $indikator = MasterIndikator::create($data);
+                                return $indikator->id;
+                            })
+                            ->editOptionForm([
+                                TextInput::make('nama_indikator')
+                                    ->label('Nama Indikator')
+                                    ->required()
+                                    ->maxLength(255),
+                            ])
+                            ->columnSpan(2),
                     ])
-                    ->columns(2),
+                    ->columns(3),
+
                 Section::make('Informasi Anggaran')
                     ->schema([
                         Forms\Components\Placeholder::make('anggaran_info')
@@ -125,7 +163,6 @@ class KegiatanResource extends BaseResource
                     ->wrap()
                     ->limit(100),
 
-
                 TextColumn::make('program.organisasi.nama')
                     ->label('Organisasi')
                     ->searchable()
@@ -133,6 +170,14 @@ class KegiatanResource extends BaseResource
                     ->wrap()
                     ->limit(30)
                     ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('indikator.nama_indikator')
+                    ->label('Indikator')
+                    ->searchable()
+                    ->wrap()
+                    // ->limit(60)
+                    ->placeholder('Belum ada indikator')
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 TextColumn::make('anggaran')
                     ->label('Total Anggaran')
@@ -167,13 +212,17 @@ class KegiatanResource extends BaseResource
             ->filters([
                 SelectFilter::make('id_program')
                     ->label('Program')
-                    ->options(Program::all()->pluck('nama_program', 'id'))
+                    ->options(function () {
+                        return Program::where('tahun', YearContext::getActiveYear())
+                            ->pluck('nama_program', 'id_program');
+                    })
                     ->searchable(),
 
                 SelectFilter::make('organisasi')
                     ->label('Organisasi')
                     ->options(function () {
                         return Program::with('organisasi')
+                            ->where('tahun', YearContext::getActiveYear())
                             ->get()
                             ->pluck('organisasi.nama', 'organisasi.id')
                             ->filter()
@@ -186,6 +235,36 @@ class KegiatanResource extends BaseResource
                         );
                     })
                     ->searchable(),
+
+                SelectFilter::make('indikator_id')
+                    ->label('Indikator')
+                    ->options(MasterIndikator::all()->pluck('nama_indikator', 'id'))
+                    ->searchable(),
+
+                SelectFilter::make('serapan')
+                    ->label('Tingkat Serapan')
+                    ->options([
+                        'tinggi' => 'Tinggi (≥80%)',
+                        'sedang' => 'Sedang (60-79%)',
+                        'rendah' => 'Rendah (<60%)',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        return $query->when($value, function (Builder $query) use ($value) {
+                            if ($value === 'tinggi') {
+                                return $query->serapanTinggi(80);
+                            } elseif ($value === 'sedang') {
+                                return $query->whereHas('subKegiatan')
+                                    ->havingRaw('
+                                        (SELECT SUM(realisasi) FROM sub_kegiatan WHERE sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan) / 
+                                        NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan WHERE sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan), 0) * 100 BETWEEN 60 AND 79.99
+                                    ');
+                            } elseif ($value === 'rendah') {
+                                return $query->serapanRendah(60);
+                            }
+                        });
+                    }),
             ])
             ->actions([
                 ViewAction::make()
@@ -231,14 +310,15 @@ class KegiatanResource extends BaseResource
         ];
     }
 
-    // public static function getNavigationBadge(): ?string
-    // {
-    //     return static::getModel()::count();
-    // }
-
     public static function getGloballySearchableAttributes(): array
     {
-        return ['kode_kegiatan', 'nama_kegiatan', 'program.kode_program', 'program.nama_program'];
+        return [
+            'kode_kegiatan',
+            'nama_kegiatan',
+            'program.kode_program',
+            'program.nama_program',
+            'indikator.nama_indikator' // Tambahkan indikator ke global search
+        ];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
@@ -246,6 +326,7 @@ class KegiatanResource extends BaseResource
         return [
             'Program' => optional($record->program)->kode_program . ' - ' . optional($record->program)->nama_program,
             'Organisasi' => optional($record->program->organisasi)->nama,
+            'Indikator' => optional($record->indikator)->nama_indikator ?: 'Belum ada indikator',
         ];
     }
 }

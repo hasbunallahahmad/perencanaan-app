@@ -13,7 +13,16 @@ use Illuminate\Database\Eloquent\Builder;
 class ListPrograms extends ListRecords
 {
     protected static string $resource = ProgramResource::class;
-
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make()
+                ->label('Tambah Program')
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->tooltip('Tambah program baru'),
+        ];
+    }
     public function table(Table $table): Table
     {
         return $this->getResource()::table($table)

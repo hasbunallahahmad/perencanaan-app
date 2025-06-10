@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProgramResource\Pages;
 use App\Models\Program;
 use App\Models\Organisasi;
+use App\Models\MasterIndikator;
 use App\Services\YearContext;
 use App\Traits\HasYearFilter;
 use Filament\Forms;
@@ -49,6 +50,7 @@ class ProgramResource extends BaseResource
     {
         return parent::getEloquentQuery()->where('tahun', YearContext::getActiveYear());
     }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -61,7 +63,27 @@ class ProgramResource extends BaseResource
                         TextInput::make('kode_program')
                             ->label('Kode Program')
                             ->required()
-                            ->unique(ignoreRecord: true)
+                            // ->unique(ignoreRecord: true)
+                            ->rules([
+                                function () {
+                                    return function ($attribute, $value, $fail) {
+                                        $tahun = request()->input('tahun');
+                                        $recordId = request()->route('record'); // untuk edit
+
+                                        $query = DB::table('program')
+                                            ->where('kode_program', $value)
+                                            ->where('tahun', $tahun);
+
+                                        if ($recordId) {
+                                            $query->where('id', '!=', $recordId);
+                                        }
+
+                                        if ($query->exists()) {
+                                            $fail('Kode program sudah digunakan untuk tahun ' . $tahun);
+                                        }
+                                    };
+                                }
+                            ])
                             ->maxLength(20)
                             ->placeholder('Contoh: 2.08.01')
                             ->helperText('Format: X.XX.XX'),
@@ -73,29 +95,70 @@ class ProgramResource extends BaseResource
                             ->columnSpanFull()
                             ->placeholder('Masukkan nama program'),
 
+                        Select::make('indikator_id')
+                            ->label('Indikator Utama')
+                            ->relationship('indikator', 'nama_indikator')
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->placeholder('Pilih indikator utama')
+                            ->helperText('Indikator utama untuk mengukur kinerja program')
+                            ->createOptionForm([
+                                TextInput::make('nama_indikator')
+                                    ->label('Nama Indikator')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->placeholder('Masukkan nama indikator baru'),
+                            ])
+                            ->createOptionUsing(function (array $data) {
+                                $indikator = MasterIndikator::create($data);
+                                return $indikator->id;
+                            })
+                            ->editOptionForm([
+                                TextInput::make('nama_indikator')
+                                    ->label('Nama Indikator')
+                                    ->required()
+                                    ->maxLength(255),
+                            ])
+                            ->columnSpan(1),
+
+                        // INDIKATOR KEDUA
+                        Select::make('indikator_id_2')
+                            ->label('Indikator Kedua')
+                            ->relationship('indikator2', 'nama_indikator')
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->placeholder('Pilih indikator kedua (opsional)')
+                            ->helperText('Indikator tambahan untuk mengukur kinerja program')
+                            ->createOptionForm([
+                                TextInput::make('nama_indikator')
+                                    ->label('Nama Indikator')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->placeholder('Masukkan nama indikator baru'),
+                            ])
+                            ->createOptionUsing(function (array $data) {
+                                $indikator = MasterIndikator::create($data);
+                                return $indikator->id;
+                            })
+                            ->editOptionForm([
+                                TextInput::make('nama_indikator')
+                                    ->label('Nama Indikator')
+                                    ->required()
+                                    ->maxLength(255),
+                            ])
+                            ->different('indikator_id')
+                            ->columnSpan(1),
+
                         Select::make('organisasi_id')
                             ->label('Organisasi')
                             ->relationship('organisasi', 'nama')
                             ->required()
                             ->searchable()
                             ->preload()
-                            ->createOptionForm([
-                                TextInput::make('nama')
-                                    ->required()
-                                    ->maxLength(255),
-                                TextInput::make('kode')
-                                    ->maxLength(50),
-                                Textarea::make('alamat')
-                                    ->maxLength(500),
-                            ])
-                            ->helperText('Pilih organisasi yang mengelola program ini'),
-
-                        Textarea::make('deskripsi')
-                            ->label('Deskripsi Program')
-                            ->maxLength(1000)
-                            ->columnSpanFull()
-                            ->placeholder('Deskripsi singkat tentang program (opsional)')
-                            ->rows(3),
+                            ->helperText('Pilih organisasi yang mengelola program ini')
+                            ->columnSpan(1),
                     ])
                     ->columns(2),
 
@@ -172,6 +235,36 @@ class ProgramResource extends BaseResource
                         return strlen($state) > 80 ? $state : null;
                     }),
 
+                TextColumn::make('indikator_list')
+                    ->label('Indikator')
+                    ->searchable(['indikator.nama_indikator', 'indikator2.nama_indikator'])
+                    ->sortable(false)
+                    ->wrap()
+                    ->limit(60)
+                    ->placeholder('Tidak ada indikator')
+                    ->getStateUsing(function (Program $record): string {
+                        $indikators = [];
+
+                        if ($record->indikator) {
+                            $indikators[] = $record->indikator->nama_indikator;
+                        }
+
+                        if ($record->indikator2) {
+                            $indikators[] = $record->indikator2->nama_indikator;
+                        }
+
+                        return implode(', ', $indikators);
+                    })
+                    ->tooltip(function (TextColumn $column): ?string {
+                        $state = $column->getState();
+                        // Ensure $state is a string before using strlen()
+                        $stateString = is_string($state) ? $state : '';
+                        return strlen($stateString) > 60 ? $stateString : null;
+                    })
+                    ->badge()
+                    ->color('info')
+                    ->separator(', '),
+
                 TextColumn::make('total_anggaran')
                     ->label('Total Anggaran')
                     ->getStateUsing(function (Program $record): int {
@@ -244,6 +337,24 @@ class ProgramResource extends BaseResource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('indikator')
+                    ->label('Indikator')
+                    ->options(function () {
+                        return MasterIndikator::pluck('nama_indikator', 'id')->toArray();
+                    })
+                    ->query(function (Builder $query, array $data) {
+                        if (!empty($data['value'])) {
+                            return $query->where(function ($q) use ($data) {
+                                $q->where('indikator_id', $data['value'])
+                                    ->orWhere('indikator_id_2', $data['value']);
+                            });
+                        }
+                        return $query;
+                    })
+                    ->searchable()
+                    ->preload()
+                    ->multiple(),
+
                 SelectFilter::make('kategori')
                     ->options([
                         'Program Penunjang' => 'Program Penunjang',
@@ -386,6 +497,18 @@ class ProgramResource extends BaseResource
                             ->label('Nama Program')
                             ->columnSpanFull(),
 
+                        TextEntry::make('indikator.nama_indikator')
+                            ->label('Indikator Utama')
+                            ->badge()
+                            ->color('primary')
+                            ->placeholder('Tidak ada indikator utama'),
+
+                        TextEntry::make('indikator2.nama_indikator')
+                            ->label('Indikator Kedua')
+                            ->badge()
+                            ->color('secondary')
+                            ->placeholder('Tidak ada indikator kedua'),
+
                         TextEntry::make('organisasi.nama')
                             ->label('Organisasi')
                             ->badge()
@@ -470,19 +593,35 @@ class ProgramResource extends BaseResource
 
     public static function getGlobalSearchEloquentQuery(): Builder
     {
-        return parent::getGlobalSearchEloquentQuery()->with(['organisasi']);
+        return parent::getGlobalSearchEloquentQuery()->with(['organisasi', 'indikator', 'indikator2']);
     }
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['kode_program', 'nama_program', 'organisasi.nama'];
+        return [
+            'kode_program',
+            'nama_program',
+            'organisasi.nama',
+            'indikator.nama_indikator',
+            'indikator2.nama_indikator'
+        ];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
     {
-        return [
+        $details = [
             'Organisasi' => $record->organisasi?->nama,
             'Kategori' => $record->kategori,
         ];
+
+        if ($record->indikator) {
+            $details['Indikator Utama'] = $record->indikator->nama_indikator;
+        }
+
+        if ($record->indikator2) {
+            $details['Indikator Kedua'] = $record->indikator2->nama_indikator;
+        }
+
+        return $details;
     }
 }

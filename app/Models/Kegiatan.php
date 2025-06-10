@@ -22,7 +22,14 @@ class Kegiatan extends Model
         'kode_kegiatan',
         'nama_kegiatan',
         'id_program',
-        'deskripsi', // jika ada
+        'indikator_id',
+        'tahun',
+    ];
+
+    protected $dates = [
+        'created_at',
+        'updated_at',
+        'deleted_at',
     ];
 
     protected $casts = [
@@ -39,7 +46,8 @@ class Kegiatan extends Model
         'formatted_anggaran',
         'formatted_realisasi',
         'serapan_percentage',
-        'serapan_color'
+        'serapan_color',
+        'indikator_nama',
     ];
 
     public function getRouteKeyName()
@@ -47,33 +55,63 @@ class Kegiatan extends Model
         return 'id_kegiatan';
     }
 
+    // ========== RELATIONSHIPS ==========
+
+    /**
+     * Relasi ke indikator utama
+     */
+    public function indikator(): BelongsTo
+    {
+        return $this->belongsTo(MasterIndikator::class, 'indikator_id');
+    }
+
+    /**
+     * Relasi ke program
+     */
     public function program(): BelongsTo
     {
         return $this->belongsTo(Program::class, 'id_program', 'id_program');
     }
 
+    /**
+     * Relasi ke sub kegiatan
+     */
     public function subKegiatan(): HasMany
     {
         return $this->hasMany(SubKegiatan::class, 'id_kegiatan', 'id_kegiatan');
     }
 
-    // Alias untuk konsistensi
+    /**
+     * Alias untuk konsistensi
+     */
     public function subKegiatans(): HasMany
     {
         return $this->subKegiatan();
     }
 
+    /**
+     * Accessor untuk organisasi melalui program
+     */
     public function getOrganisasiAttribute()
     {
         return $this->program?->organisasi;
     }
 
     /**
+     * Accessor untuk nama indikator
+     */
+    public function getIndikatorNamaAttribute(): string
+    {
+        return $this->indikator?->nama_indikator ?? '-';
+    }
+
+    // ========== CALCULATED ATTRIBUTES ==========
+
+    /**
      * Menghitung total anggaran dari semua sub kegiatan
      */
     public function getAnggaranAttribute(): int
     {
-        // Gunakan sum langsung dari database untuk performa yang lebih baik
         return $this->subKegiatan()->sum('anggaran') ?? 0;
     }
 
@@ -99,9 +137,13 @@ class Kegiatan extends Model
 
         return 0;
     }
-    public function getPersentaseRealisasiAttribute()
+
+    /**
+     * Persentase realisasi (alias)
+     */
+    public function getPersentaseRealisasiAttribute(): float
     {
-        return $this->anggaran > 0 ? ($this->realisasi / $this->anggaran) * 100 : 0;
+        return $this->persentase_serapan;
     }
 
     /**
@@ -142,20 +184,18 @@ class Kegiatan extends Model
             default => 'danger'
         };
     }
+
+    // ========== SCOPES ==========
+
+    /**
+     * Scope untuk filter berdasarkan tahun
+     */
     public function scopeForYear($query, $year = null)
     {
         $year = $year ?? YearContext::getActiveYear();
         return $query->where('tahun', $year);
     }
-    protected static function boot()
-    {
-        parent::boot();
-        static::creating(function ($model) {
-            if (!$model->tahun) {
-                $model->tahun = YearContext::getActiveYear();
-            }
-        });
-    }
+
     /**
      * Scope untuk filter berdasarkan program
      */
@@ -172,6 +212,14 @@ class Kegiatan extends Model
         return $query->whereHas('program', function ($q) use ($organisasiId) {
             $q->where('organisasi_id', $organisasiId);
         });
+    }
+
+    /**
+     * Scope untuk filter berdasarkan indikator
+     */
+    public function scopeByIndikator($query, $indikatorId)
+    {
+        return $query->where('indikator_id', $indikatorId);
     }
 
     /**
@@ -205,6 +253,30 @@ class Kegiatan extends Model
                 NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan WHERE sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan), 0) * 100 >= ?
             ', [$threshold]);
     }
+
+    /**
+     * Scope dengan data lengkap
+     */
+    public function scopeWithFullData($query)
+    {
+        return $query->with(['program.organisasi', 'indikator'])
+            ->withCount(['subKegiatan']);
+    }
+
+    // ========== BOOT METHOD ==========
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (!$model->tahun) {
+                $model->tahun = YearContext::getActiveYear();
+            }
+        });
+    }
+
+    // ========== STATIC METHODS ==========
 
     /**
      * Mendapatkan statistik kegiatan

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Validation\Rule;
 
 class Program extends Model
 {
@@ -23,8 +24,14 @@ class Program extends Model
         'kode_program',
         'nama_program',
         'organisasi_id',
-        'deskripsi',
+        'indikator_id',
+        'indikator_id_2',
         'tahun',
+    ];
+    protected $dates = [
+        'created_at',
+        'updated_at',
+        'deleted_at',
     ];
 
     protected $casts = [
@@ -42,10 +49,35 @@ class Program extends Model
         'total_kegiatan',
         'total_sub_kegiatan',
         'kategori',
-        'badge_color'
+        'badge_color',
+        'indikator_list',
     ];
-
+    public static function validationRules($id = null)
+    {
+        return [
+            'kode_program' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('program')
+                    ->where(function ($query) {
+                        return $query->where('tahun', request()->tahun);
+                    })
+                    ->ignore($id)
+            ],
+            'tahun' => 'required|integer',
+            'nama_program' => 'required|string',
+        ];
+    }
     // ========== RELATIONSHIPS ==========
+    public function indikator()
+    {
+        return $this->belongsTo(MasterIndikator::class, 'indikator_id');
+    }
+    public function indikator2()
+    {
+        return $this->belongsTo(MasterIndikator::class, 'indikator_id_2');
+    }
     public function organisasi(): BelongsTo
     {
         return $this->belongsTo(Organisasi::class, 'organisasi_id', 'id');
@@ -197,6 +229,53 @@ class Program extends Model
             default => 'gray',
         };
     }
+    public function getAllIndikators()
+    {
+        $indikators = collect();
+
+        if ($this->indikator) {
+            $indikators->push($this->indikator);
+        }
+
+        if ($this->indikator2) {
+            $indikators->push($this->indikator2);
+        }
+
+        return $indikators;
+    }
+    public function getIndikatorListAttribute(): string
+    {
+        $indikators = [];
+
+        if ($this->indikator) {
+            $indikators[] = $this->indikator->nama_indikator;
+        }
+
+        if ($this->indikator2) {
+            $indikators[] = $this->indikator2->nama_indikator;
+        }
+
+        return implode(', ', $indikators);
+    }
+    // ========== SCOPES ==========
+
+    // TAMBAHAN: Scope untuk filter berdasarkan indikator
+    public function scopeByIndikator($query, $indikatorId)
+    {
+        return $query->where(function ($q) use ($indikatorId) {
+            $q->where('indikator_id', $indikatorId)
+                ->orWhere('indikator_id_2', $indikatorId);
+        });
+    }
+
+    // TAMBAHAN: Scope untuk program yang memiliki indikator tertentu
+    public function scopeHasIndikator($query, $indikatorId)
+    {
+        return $query->where(function ($q) use ($indikatorId) {
+            $q->where('indikator_id', $indikatorId)
+                ->orWhere('indikator_id_2', $indikatorId);
+        });
+    }
 
     // ========== SCOPES ==========
     public function scopeForYear($query, $year = null)
@@ -266,7 +345,7 @@ class Program extends Model
 
     public function scopeWithFullData($query)
     {
-        return $query->with(['organisasi'])
+        return $query->with(['organisasi', 'indikator', 'indikator2'])
             ->withCount(['kegiatan'])
             ->withCalculatedTotals();
     }

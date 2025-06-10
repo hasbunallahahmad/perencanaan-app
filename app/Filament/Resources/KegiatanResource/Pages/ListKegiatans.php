@@ -13,7 +13,16 @@ use Illuminate\Database\Eloquent\Builder;
 class ListKegiatans extends ListRecords
 {
     protected static string $resource = KegiatanResource::class;
-
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make()
+                ->label('Tambah Kegiatan')
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->tooltip('Tambah Kegiatan baru'),
+        ];
+    }
     public function table(Table $table): Table
     {
         return $this->getResource()::table($table)
