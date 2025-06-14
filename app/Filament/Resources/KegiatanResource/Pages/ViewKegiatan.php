@@ -73,8 +73,7 @@ class ViewKegiatan extends ViewRecord
                             }),
 
                         TextEntry::make('sub_kegiatans_count')
-                            ->label('Jumlah Sub Kegiatan')
-                            ->counts('subKegiatans'),
+                            ->label('Jumlah Sub Kegiatan'),
                     ])
                     ->columns(2),
 

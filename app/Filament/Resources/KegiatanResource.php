@@ -26,6 +26,7 @@ use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Unique;
 
 class KegiatanResource extends BaseResource
@@ -276,11 +277,12 @@ class KegiatanResource extends BaseResource
                     ->icon('heroicon-o-pencil')
                     ->color('warning')
                     ->label('')
+                    ->hidden(fn() => Auth::user()->hasRole('panel_user'))
                     ->tooltip('Ubah'),
                 DeleteAction::make()
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->label('')
+                    ->label('')->hidden(fn() => Auth::user()->hasRole('panel_user'))
                     ->tooltip('Hapus'),
             ])
             ->bulkActions([

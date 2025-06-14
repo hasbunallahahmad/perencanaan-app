@@ -30,7 +30,10 @@ class SeksiResource extends Resource
         return parent::getEloquentQuery()
             ->with(['bidang.organisasi']);
     }
-
+    public static function canAccess(): bool
+    {
+        return \Illuminate\Support\Facades\Auth::user()->hasRole('super_admin');
+    }
     public static function form(Form $form): Form
     {
         return $form

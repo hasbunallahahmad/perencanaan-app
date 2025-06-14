@@ -39,12 +39,24 @@ class Bidang extends Model
     {
         return $this->hasMany(Seksi::class)->where('jenis', 'subbagian');
     }
-
+    public function programs()
+    {
+        return $this->hasMany(Program::class, 'bidang_id', 'id');
+    }
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
-
+    public static function getUniqueActive()
+    {
+        return self::where('aktif', true)
+            ->orderBy('nama')
+            ->get()
+            ->groupBy('nama')
+            ->map(function ($group) {
+                return $group->first();
+            });
+    }
     public function getJenisUnitAttribute()
     {
         return $this->is_sekretariat ? 'Subbagian' : 'Seksi';

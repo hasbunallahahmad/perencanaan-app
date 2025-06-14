@@ -52,9 +52,11 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
+                // Widgets\AccountWidget::class,
+                // Widgets\FilamentInfoWidget::class,
                 // YearSelectorHeaderWidget::class,
+                \App\Filament\Widgets\AnggaranKasOverviewWidget::class,
+                \App\Filament\Widgets\AnggaranKasChartWidget::class,
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->middleware([
@@ -69,6 +71,10 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->navigationGroups([
+                NavigationGroup::make('Manajemen Anggaran')
+                    ->label('Manajemen Anggaran')
+                    ->icon('heroicon-o-circle-stack')
+                    ->collapsible(),
                 NavigationGroup::make('Master Data')
                     ->label('Master Data')
                     ->icon('heroicon-o-circle-stack')
@@ -87,6 +93,9 @@ class AdminPanelProvider extends PanelProvider
                     ->collapsible(),
             ])
             ->sidebarCollapsibleOnDesktop()
+            // ->sidebarCollapsed(true)
+            // ->spa()
+            ->sidebarFullyCollapsibleOnDesktop(false)
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             // ->databaseNotifications()
             // ->databaseNotificationsPolling('30s')

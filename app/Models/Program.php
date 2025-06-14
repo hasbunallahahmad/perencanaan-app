@@ -70,6 +70,10 @@ class Program extends Model
         ];
     }
     // ========== RELATIONSHIPS ==========
+    public function bidang()
+    {
+        return $this->belongsTo(Bidang::class, 'bidang_id');
+    }
     public function indikator()
     {
         return $this->belongsTo(MasterIndikator::class, 'indikator_id');

@@ -40,10 +40,10 @@ class PerencanaanKinerja extends Page implements HasForms, HasTable
     // protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
     protected static ?string $navigationGroup = 'Perencanaan';
     protected static string $view = 'filament.pages.perencanaan-kinerja';
-    protected static ?string $title = 'Target  SubKegiatan';
-    protected static ?string $navigationLabel = 'Target  SubKegiatan';
-    protected static ?string $pluralLabel = 'Target  SubKegiatan';
-    protected static ?string $pluralModelLabel = 'Target  SubKegiatan';
+    protected static ?string $title = 'Target  Sub Kegiatan';
+    protected static ?string $navigationLabel = 'Target  Sub Kegiatan';
+    protected static ?string $pluralLabel = 'Target  Sub Kegiatan';
+    protected static ?string $pluralModelLabel = 'Target  Sub Kegiatan';
     protected static ?int $navigationSort = 3;
     public ?array $data = [];
     // Hanya untuk Super Admin
@@ -102,6 +102,7 @@ class PerencanaanKinerja extends Page implements HasForms, HasTable
                         TextInput::make('tahun')
                             ->label('Tahun')
                             ->numeric()
+                            // ->disabled()
                             ->default(YearContext::getActiveYear())
                             ->required(),
                     ]),

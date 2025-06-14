@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Filament\Infolists\Components\Section;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class ProgramResource extends BaseResource
 {
@@ -457,11 +458,13 @@ class ProgramResource extends BaseResource
                     ->icon('heroicon-o-pencil')
                     ->color('warning')
                     ->label('')
+                    ->hidden(fn() => Auth::user()->hasRole('panel_user'))
                     ->tooltip('Ubah'),
                 DeleteAction::make()
                     ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->label('')
+                    ->hidden(fn() => Auth::user()->hasRole('panel_user'))
                     ->requiresConfirmation()
                     ->modalHeading('Hapus Program')
                     ->modalDescription('Apakah Anda yakin ingin menghapus program ini? Semua data kegiatan dan sub kegiatan terkait juga akan ikut terhapus.')

@@ -52,6 +52,11 @@ class PerencanaanKinerjaProgram extends Page implements HasTable, HasForms
   // {
   //   return 'tahun'; // atau 'year' sesuai dengan struktur tabel
   // }
+  public static function canAccess(): bool
+  {
+    return \Illuminate\Support\Facades\Auth::user()->hasRole('super_admin');
+  }
+
   public function mount(): void
   {
     $this->form->fill(['tahun' => YearContext::getActiveYear()]);

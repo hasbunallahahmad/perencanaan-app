@@ -26,4 +26,14 @@ class ListTujuanSasarans extends ListRecords
                     ->color('primary'),
             ]);
     }
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make()
+                ->label('Tambah  Tujuan & Sasaran')
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->tooltip('Tambah tujuan & sasaran baru'),
+        ];
+    }
 }

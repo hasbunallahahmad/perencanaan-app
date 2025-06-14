@@ -22,13 +22,17 @@ class SubKegiatan extends Model
         'sumber_dana',
         'anggaran',
         'realisasi',
+        'indikator_id',
+        'tahun',
     ];
 
     protected $casts = [
         'anggaran' => 'integer',
         'realisasi' => 'integer',
-        'kegiatan_id' => 'integer',
+        'id_kegiatan' => 'integer',
+        'indikator_id' => 'integer',
         'sumber_dana' => 'array',
+        'tahun' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -49,6 +53,19 @@ class SubKegiatan extends Model
     {
         return $this->belongsTo(Kegiatan::class, 'id_kegiatan', 'id_kegiatan');
     }
+    public function serapanAnggaran(): HasMany
+    {
+        return $this->hasMany(SerapanAnggaran::class, 'id_sub_kegiatan', 'id_sub_kegiatan');
+    }
+    public function getSerapanAnggaranAttribute()
+    {
+        return $this->persentase_serapan;
+    }
+    public function indikator(): BelongsTo
+    {
+        return $this->belongsTo(MasterIndikator::class, 'indikator_id', 'id');
+    }
+
     public function scopeForYear($query, $year = null)
     {
         $year = $year ?? YearContext::getActiveYear();
@@ -81,10 +98,10 @@ class SubKegiatan extends Model
         return $this->hasOneThrough(
             Program::class,
             Kegiatan::class,
-            'id_program',
+            'id_kegiatan',
             'id_program',
             'id_kegiatan',
-            'id'
+            'id_program'
         );
     }
     public function getOrganisasiAttribute()
@@ -134,6 +151,10 @@ class SubKegiatan extends Model
         return $query->whereHas('kegiatan.program', function ($q) use ($programId) {
             $q->where('id', $programId);
         });
+    }
+    public function scopeByIndikator($query, int $indikatorId)
+    {
+        return $query->where('indikator_id', $indikatorId);
     }
     public function getFormattedAnggaranAttribute(): string
     {

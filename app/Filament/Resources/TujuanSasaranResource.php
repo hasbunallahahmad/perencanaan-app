@@ -282,7 +282,8 @@ class TujuanSasaranResource extends BaseResource
             ])
             ->actions([
                 Tables\Actions\Action::make('input_realisasi')
-                    ->label('Input Realisasi')
+                    ->label('')
+                    ->tooltip('Input Realisasi')
                     ->icon('heroicon-o-pencil-square')
                     ->color('primary')
                     ->form([

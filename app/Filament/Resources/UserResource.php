@@ -116,6 +116,7 @@ class UserResource extends Resource
                             ->label('Email Verified At'),
                         Forms\Components\TextInput::make('password')
                             ->password()
+                            ->revealable()
                             ->dehydrateStateUsing(fn($state) => Hash::make($state))
                             ->dehydrated(fn($state) => filled($state))
                             ->required(fn(string $context) => $context === 'create')

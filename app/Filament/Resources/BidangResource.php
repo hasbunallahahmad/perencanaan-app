@@ -21,6 +21,10 @@ class BidangResource extends Resource
     protected static ?string $modelLabel = 'Bidang';
     protected static ?string $pluralModelLabel = 'Bidang';
     protected static ?int $navigationSort = 3;
+    public static function canAccess(): bool
+    {
+        return \Illuminate\Support\Facades\Auth::user()->hasRole('super_admin');
+    }
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()

@@ -29,7 +29,16 @@ class ListSubKegiatans extends ListRecords
                     ->color('primary'),
             ]);
     }
-
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make()
+                ->label('Tambah Sub Kegiatan')
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->tooltip('Tambah Sub Kegiatan baru'),
+        ];
+    }
     protected function getHeaderWidgets(): array
     {
         return SubKegiatanResource::getWidgets();
