@@ -71,13 +71,13 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Manajemen Anggaran')
-                    ->label('Manajemen Anggaran')
-                    ->icon('heroicon-o-circle-stack')
-                    ->collapsible(),
                 NavigationGroup::make('Master Data')
                     ->label('Master Data')
                     ->icon('heroicon-o-circle-stack')
+                    ->collapsible(),
+                NavigationGroup::make('Manajemen Anggaran')
+                    ->label('Manajemen Anggaran')
+                    ->icon('heroicon-o-adjustments-horizontal')
                     ->collapsible(),
                 NavigationGroup::make('Perencanaan')
                     ->label('Perencanaan')

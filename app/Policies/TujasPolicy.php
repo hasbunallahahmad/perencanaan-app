@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\Kegiatan;
+use App\Models\Tujas;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class KegiatanPolicy
+class TujasPolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class KegiatanPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_kegiatan');
+        return $user->can('view_any_tujuan::sasaran');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Kegiatan $kegiatan): bool
+    public function view(User $user, Tujas $tujas): bool
     {
-        return $user->can('view_kegiatan');
+        return $user->can('view_tujuan::sasaran');
     }
 
     /**
@@ -31,23 +31,23 @@ class KegiatanPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_kegiatan');
+        return $user->can('create_tujuan::sasaran');
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Kegiatan $kegiatan): bool
+    public function update(User $user, Tujas $tujas): bool
     {
-        return $user->can('update_kegiatan');
+        return $user->can('update_tujuan::sasaran');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Kegiatan $kegiatan): bool
+    public function delete(User $user, Tujas $tujas): bool
     {
-        return $user->can('delete_kegiatan');
+        return $user->can('delete_tujuan::sasaran');
     }
 
     /**
@@ -55,15 +55,15 @@ class KegiatanPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_kegiatan');
+        return $user->can('delete_any_tujuan::sasaran');
     }
 
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(User $user, Kegiatan $kegiatan): bool
+    public function forceDelete(User $user, Tujas $tujas): bool
     {
-        return $user->can('force_delete_kegiatan');
+        return $user->can('force_delete_tujuan::sasaran');
     }
 
     /**
@@ -71,15 +71,15 @@ class KegiatanPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_kegiatan');
+        return $user->can('force_delete_any_tujuan::sasaran');
     }
 
     /**
      * Determine whether the user can restore.
      */
-    public function restore(User $user, Kegiatan $kegiatan): bool
+    public function restore(User $user, Tujas $tujas): bool
     {
-        return $user->can('restore_kegiatan');
+        return $user->can('restore_tujuan::sasaran');
     }
 
     /**
@@ -87,15 +87,15 @@ class KegiatanPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_kegiatan');
+        return $user->can('restore_any_tujuan::sasaran');
     }
 
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(User $user, Kegiatan $kegiatan): bool
+    public function replicate(User $user, Tujas $tujas): bool
     {
-        return $user->can('replicate_kegiatan');
+        return $user->can('replicate_tujuan::sasaran');
     }
 
     /**
@@ -103,6 +103,6 @@ class KegiatanPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_kegiatan');
+        return $user->can('reorder_tujuan::sasaran');
     }
 }

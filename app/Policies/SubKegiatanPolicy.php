@@ -2,18 +2,20 @@
 
 namespace App\Policies;
 
-use App\Models\SubKegiatan;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
+use App\Models\SubKegiatan;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class SubKegiatanPolicy
 {
+    use HandlesAuthorization;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool
     {
-        return true;
+        return $user->can('view_any_sub::kegiatan');
     }
 
     /**
@@ -21,7 +23,7 @@ class SubKegiatanPolicy
      */
     public function view(User $user, SubKegiatan $subKegiatan): bool
     {
-        return true;
+        return $user->can('view_sub::kegiatan');
     }
 
     /**
@@ -29,7 +31,7 @@ class SubKegiatanPolicy
      */
     public function create(User $user): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('create_sub::kegiatan');
     }
 
     /**
@@ -37,7 +39,7 @@ class SubKegiatanPolicy
      */
     public function update(User $user, SubKegiatan $subKegiatan): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('update_sub::kegiatan');
     }
 
     /**
@@ -45,22 +47,62 @@ class SubKegiatanPolicy
      */
     public function delete(User $user, SubKegiatan $subKegiatan): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('delete_sub::kegiatan');
     }
 
     /**
-     * Determine whether the user can restore the model.
+     * Determine whether the user can bulk delete.
      */
-    public function restore(User $user, SubKegiatan $subKegiatan): bool
+    public function deleteAny(User $user): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('delete_any_sub::kegiatan');
     }
 
     /**
-     * Determine whether the user can permanently delete the model.
+     * Determine whether the user can permanently delete.
      */
     public function forceDelete(User $user, SubKegiatan $subKegiatan): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('force_delete_sub::kegiatan');
+    }
+
+    /**
+     * Determine whether the user can permanently bulk delete.
+     */
+    public function forceDeleteAny(User $user): bool
+    {
+        return $user->can('force_delete_any_sub::kegiatan');
+    }
+
+    /**
+     * Determine whether the user can restore.
+     */
+    public function restore(User $user, SubKegiatan $subKegiatan): bool
+    {
+        return $user->can('restore_sub::kegiatan');
+    }
+
+    /**
+     * Determine whether the user can bulk restore.
+     */
+    public function restoreAny(User $user): bool
+    {
+        return $user->can('restore_any_sub::kegiatan');
+    }
+
+    /**
+     * Determine whether the user can replicate.
+     */
+    public function replicate(User $user, SubKegiatan $subKegiatan): bool
+    {
+        return $user->can('replicate_sub::kegiatan');
+    }
+
+    /**
+     * Determine whether the user can reorder.
+     */
+    public function reorder(User $user): bool
+    {
+        return $user->can('reorder_sub::kegiatan');
     }
 }

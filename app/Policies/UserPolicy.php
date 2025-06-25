@@ -40,7 +40,7 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
-        return true;
+        return $user->can('create_user');
     }
 
     /**
@@ -49,7 +49,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function update(User $user, User $model): bool
+    public function update(User $user): bool
     {
         return $user->can('update_user');
     }
@@ -60,9 +60,9 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function delete(User $user, User $model): bool
+    public function delete(User $user): bool
     {
-        return $user->can('delete_user') && $model->id !== $user->id;
+        return $user->can('delete_user');
     }
 
     /**

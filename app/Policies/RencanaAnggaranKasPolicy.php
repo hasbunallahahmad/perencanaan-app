@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\Kegiatan;
+use App\Models\RencanaAnggaranKas;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class KegiatanPolicy
+class RencanaAnggaranKasPolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class KegiatanPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_kegiatan');
+        return $user->can('view_any_rencana::anggaran::kas');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Kegiatan $kegiatan): bool
+    public function view(User $user, RencanaAnggaranKas $rencanaAnggaranKas): bool
     {
-        return $user->can('view_kegiatan');
+        return $user->can('view_rencana::anggaran::kas');
     }
 
     /**
@@ -31,23 +31,23 @@ class KegiatanPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_kegiatan');
+        return $user->can('create_rencana::anggaran::kas');
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Kegiatan $kegiatan): bool
+    public function update(User $user, RencanaAnggaranKas $rencanaAnggaranKas): bool
     {
-        return $user->can('update_kegiatan');
+        return $user->can('update_rencana::anggaran::kas');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Kegiatan $kegiatan): bool
+    public function delete(User $user, RencanaAnggaranKas $rencanaAnggaranKas): bool
     {
-        return $user->can('delete_kegiatan');
+        return $user->can('delete_rencana::anggaran::kas');
     }
 
     /**
@@ -55,15 +55,15 @@ class KegiatanPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_kegiatan');
+        return $user->can('delete_any_rencana::anggaran::kas');
     }
 
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(User $user, Kegiatan $kegiatan): bool
+    public function forceDelete(User $user, RencanaAnggaranKas $rencanaAnggaranKas): bool
     {
-        return $user->can('force_delete_kegiatan');
+        return $user->can('force_delete_rencana::anggaran::kas');
     }
 
     /**
@@ -71,15 +71,15 @@ class KegiatanPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_kegiatan');
+        return $user->can('force_delete_any_rencana::anggaran::kas');
     }
 
     /**
      * Determine whether the user can restore.
      */
-    public function restore(User $user, Kegiatan $kegiatan): bool
+    public function restore(User $user, RencanaAnggaranKas $rencanaAnggaranKas): bool
     {
-        return $user->can('restore_kegiatan');
+        return $user->can('restore_rencana::anggaran::kas');
     }
 
     /**
@@ -87,15 +87,15 @@ class KegiatanPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_kegiatan');
+        return $user->can('restore_any_rencana::anggaran::kas');
     }
 
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(User $user, Kegiatan $kegiatan): bool
+    public function replicate(User $user, RencanaAnggaranKas $rencanaAnggaranKas): bool
     {
-        return $user->can('replicate_kegiatan');
+        return $user->can('replicate_rencana::anggaran::kas');
     }
 
     /**
@@ -103,6 +103,6 @@ class KegiatanPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_kegiatan');
+        return $user->can('reorder_rencana::anggaran::kas');
     }
 }

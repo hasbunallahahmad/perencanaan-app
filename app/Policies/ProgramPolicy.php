@@ -2,18 +2,20 @@
 
 namespace App\Policies;
 
-use App\Models\Program;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
+use App\Models\Program;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class ProgramPolicy
 {
+    use HandlesAuthorization;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool
     {
-        return true;
+        return $user->can('view_any_program');
     }
 
     /**
@@ -21,7 +23,7 @@ class ProgramPolicy
      */
     public function view(User $user, Program $program): bool
     {
-        return true;
+        return $user->can('view_program');
     }
 
     /**
@@ -29,7 +31,7 @@ class ProgramPolicy
      */
     public function create(User $user): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('create_program');
     }
 
     /**
@@ -37,7 +39,7 @@ class ProgramPolicy
      */
     public function update(User $user, Program $program): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('update_program');
     }
 
     /**
@@ -45,22 +47,62 @@ class ProgramPolicy
      */
     public function delete(User $user, Program $program): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('delete_program');
     }
 
     /**
-     * Determine whether the user can restore the model.
+     * Determine whether the user can bulk delete.
      */
-    public function restore(User $user, Program $program): bool
+    public function deleteAny(User $user): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('delete_any_program');
     }
 
     /**
-     * Determine whether the user can permanently delete the model.
+     * Determine whether the user can permanently delete.
      */
     public function forceDelete(User $user, Program $program): bool
     {
-        return !$user->hasRole('panel_user');
+        return $user->can('force_delete_program');
+    }
+
+    /**
+     * Determine whether the user can permanently bulk delete.
+     */
+    public function forceDeleteAny(User $user): bool
+    {
+        return $user->can('force_delete_any_program');
+    }
+
+    /**
+     * Determine whether the user can restore.
+     */
+    public function restore(User $user, Program $program): bool
+    {
+        return $user->can('restore_program');
+    }
+
+    /**
+     * Determine whether the user can bulk restore.
+     */
+    public function restoreAny(User $user): bool
+    {
+        return $user->can('restore_any_program');
+    }
+
+    /**
+     * Determine whether the user can replicate.
+     */
+    public function replicate(User $user, Program $program): bool
+    {
+        return $user->can('replicate_program');
+    }
+
+    /**
+     * Determine whether the user can reorder.
+     */
+    public function reorder(User $user): bool
+    {
+        return $user->can('reorder_program');
     }
 }
