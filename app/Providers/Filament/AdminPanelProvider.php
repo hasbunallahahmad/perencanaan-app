@@ -87,8 +87,8 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Capaian Kinerja')
                     ->icon('heroicon-o-chart-pie')
                     ->collapsible(),
-                NavigationGroup::make('Users Management')
-                    ->label('Users Management')
+                NavigationGroup::make('Pengguna dan SOTK')
+                    ->label('Pengguna dan SOTK')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsible(),
             ])

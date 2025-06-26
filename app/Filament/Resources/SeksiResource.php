@@ -20,7 +20,7 @@ class SeksiResource extends Resource
 {
     protected static ?string $model = Seksi::class;
     // protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
-    protected static ?string $navigationGroup = 'Users Management';
+    protected static ?string $navigationGroup = 'Pengguna dan SOTK';
     protected static ?int $navigationSort = 4;
     protected static ?string $modelLabel = 'Seksi';
     protected static ?string $pluralModelLabel = 'Seksi';
