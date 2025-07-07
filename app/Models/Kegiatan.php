@@ -38,11 +38,8 @@ class Kegiatan extends Model
         'deleted_at' => 'datetime',
     ];
 
-    // Tambahkan accessor ke appends
+    // Tambahan accessor 
     protected $appends = [
-        'anggaran',
-        'realisasi',
-        'persentase_serapan',
         'formatted_anggaran',
         'formatted_realisasi',
         'serapan_percentage',
@@ -55,77 +52,57 @@ class Kegiatan extends Model
         return 'id_kegiatan';
     }
 
-    // ========== RELATIONSHIPS ==========
-
-    /**
-     * Relasi ke indikator utama
-     */
+    // ========== RELASI ==========
     public function indikator(): BelongsTo
     {
         return $this->belongsTo(MasterIndikator::class, 'indikator_id');
     }
-
-    /**
-     * Relasi ke program
-     */
     public function program(): BelongsTo
     {
         return $this->belongsTo(Program::class, 'id_program', 'id_program');
     }
-
-    /**
-     * Relasi ke sub kegiatan
-     */
     public function subKegiatan(): HasMany
     {
         return $this->hasMany(SubKegiatan::class, 'id_kegiatan', 'id_kegiatan');
     }
-
-    /**
-     * Alias untuk konsistensi
-     */
     public function subKegiatans(): HasMany
     {
         return $this->subKegiatan();
     }
 
-    /**
-     * Accessor untuk organisasi melalui program
-     */
     public function getOrganisasiAttribute()
     {
         return $this->program?->organisasi;
     }
-
-    /**
-     * Accessor untuk nama indikator
-     */
     public function getIndikatorNamaAttribute(): string
     {
         return $this->indikator?->nama_indikator ?? '-';
     }
 
-    // ========== CALCULATED ATTRIBUTES ==========
+    // ========== perhitungan ==========
 
-    /**
-     * Menghitung total anggaran dari semua sub kegiatan
-     */
     public function getAnggaranAttribute(): int
     {
-        return $this->subKegiatan()->sum('anggaran') ?? 0;
+        if (isset($this->attributes['sub_kegiatan_sum_anggaran'])) {
+            return $this->attributes['sub_kegiatan_sum_anggaran'] ?? 0;
+        }
+        if (!$this->relationLoaded('subKegiatan')) {
+            return $this->subKegiatan()->sum('anggaran') ?? 0;
+        }
+        return  $this->subKegiatan()->sum('anggaran') ?? 0;
     }
 
-    /**
-     * Menghitung total realisasi dari semua sub kegiatan
-     */
     public function getRealisasiAttribute(): int
     {
-        return $this->subKegiatan()->sum('realisasi') ?? 0;
+        if (isset($this->attributes['sub_kegiatan_sum_realisasi'])) {
+            return $this->attributes['sub_kegiatan_sum_realisasi'] ?? 0;
+        }
+        if (!$this->relationLoaded('subKegiatan')) {
+            return $this->subKegiatan()->sum('realisasi') ?? 0;
+        }
+        return  $this->subKegiatan()->sum('realisasi') ?? 0;
     }
 
-    /**
-     * Menghitung persentase serapan
-     */
     public function getPersentaseSerapanAttribute(): float
     {
         $totalAnggaran = $this->anggaran;
@@ -138,41 +115,26 @@ class Kegiatan extends Model
         return 0;
     }
 
-    /**
-     * Persentase realisasi (alias)
-     */
     public function getPersentaseRealisasiAttribute(): float
     {
         return $this->persentase_serapan;
     }
 
-    /**
-     * Format anggaran untuk display
-     */
     public function getFormattedAnggaranAttribute(): string
     {
         return 'Rp ' . number_format($this->anggaran, 0, ',', '.');
     }
 
-    /**
-     * Format realisasi untuk display
-     */
     public function getFormattedRealisasiAttribute(): string
     {
         return 'Rp ' . number_format($this->realisasi, 0, ',', '.');
     }
 
-    /**
-     * Persentase serapan dengan format string
-     */
     public function getSerapanPercentageAttribute(): string
     {
         return number_format($this->persentase_serapan, 2) . '%';
     }
 
-    /**
-     * Warna badge berdasarkan serapan
-     */
     public function getSerapanColorAttribute(): string
     {
         $serapan = $this->persentase_serapan;
@@ -187,26 +149,17 @@ class Kegiatan extends Model
 
     // ========== SCOPES ==========
 
-    /**
-     * Scope untuk filter berdasarkan tahun
-     */
     public function scopeForYear($query, $year = null)
     {
         $year = $year ?? YearContext::getActiveYear();
         return $query->where('tahun', $year);
     }
 
-    /**
-     * Scope untuk filter berdasarkan program
-     */
     public function scopeByProgram($query, int $programId)
     {
         return $query->where('id_program', $programId);
     }
 
-    /**
-     * Scope untuk filter berdasarkan organisasi
-     */
     public function scopeByOrganisasi($query, int $organisasiId)
     {
         return $query->whereHas('program', function ($q) use ($organisasiId) {
@@ -214,56 +167,55 @@ class Kegiatan extends Model
         });
     }
 
-    /**
-     * Scope untuk filter berdasarkan indikator
-     */
     public function scopeByIndikator($query, $indikatorId)
     {
         return $query->where('indikator_id', $indikatorId);
     }
 
-    /**
-     * Scope untuk kegiatan dengan sub kegiatan
-     */
     public function scopeHasSubKegiatan($query)
     {
         return $query->has('subKegiatan');
     }
 
-    /**
-     * Scope untuk serapan rendah
-     */
-    public function scopeSerapanRendah($query, float $threshold = 60)
-    {
-        return $query->whereHas('subKegiatan')
-            ->havingRaw('
-                (SELECT SUM(realisasi) FROM sub_kegiatan WHERE sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan) / 
-                NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan WHERE sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan), 0) * 100 < ?
-            ', [$threshold]);
-    }
-
-    /**
-     * Scope untuk serapan tinggi
-     */
-    public function scopeSerapanTinggi($query, float $threshold = 80)
-    {
-        return $query->whereHas('subKegiatan')
-            ->havingRaw('
-                (SELECT SUM(realisasi) FROM sub_kegiatan WHERE sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan) / 
-                NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan WHERE sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan), 0) * 100 >= ?
-            ', [$threshold]);
-    }
-
-    /**
-     * Scope dengan data lengkap
-     */
-    public function scopeWithFullData($query)
+    public function scopeWithOptimizedData($query)
     {
         return $query->with(['program.organisasi', 'indikator'])
+            ->withSum(['subKegiatan' => function ($query) {
+                $query->whereNull('deleted_at');
+            }], 'anggaran')
+            ->withSum(['subKegiatan' => function ($query) {
+                $query->whereNull('deleted_at');
+            }], 'realisasi')
             ->withCount(['subKegiatan']);
     }
+    public function scopeSerapanRendah($query, float $threshold = 60)
+    {
+        return $query->withOptimizedData()
+            ->havingRaw('
+                CASE 
+                    WHEN COALESCE(sub_kegiatan_sum_anggaran, 0) = 0 THEN 0
+                    ELSE (COALESCE(sub_kegiatan_sum_realisasi, 0) / sub_kegiatan_sum_anggaran * 100)
+                END < ?
+            ', [$threshold]);
+    }
 
-    // ========== BOOT METHOD ==========
+    public function scopeSerapanTinggi($query, float $threshold = 80)
+    {
+        return $query->withOptimizedData()
+            ->havingRaw('
+                CASE 
+                    WHEN COALESCE(sub_kegiatan_sum_anggaran, 0) = 0 THEN 0
+                    ELSE (COALESCE(sub_kegiatan_sum_realisasi, 0) / sub_kegiatan_sum_anggaran * 100)
+                END >= ?
+            ', [$threshold]);
+    }
+
+    public function scopeWithFullData($query)
+    {
+        return $this->scopeWithOptimizedData($query);
+    }
+
+    // ========== BOOT ==========
 
     protected static function boot()
     {
@@ -276,21 +228,45 @@ class Kegiatan extends Model
         });
     }
 
-    // ========== STATIC METHODS ==========
-
-    /**
-     * Mendapatkan statistik kegiatan
-     */
+    // ========== STATIC ==========
     public static function getStatistics(): array
     {
+        $stats = static::selectRaw('
+            COUNT(*) as total_kegiatan,
+            COUNT(CASE WHEN sub_kegiatan_count > 0 THEN 1 END) as kegiatan_dengan_sub,
+            COUNT(CASE WHEN sub_kegiatan_count = 0 THEN 1 END) as kegiatan_tanpa_sub,
+            SUM(COALESCE(sub_kegiatan_sum_anggaran, 0)) as total_anggaran,
+            SUM(COALESCE(sub_kegiatan_sum_realisasi, 0)) as total_realisasi
+        ')
+            ->withCount('subKegiatan')
+            ->withSum('subKegiatan', 'anggaran')
+            ->withSum('subKegiatan', 'realisasi')
+            ->first();
+
         return [
-            'total_kegiatan' => static::count(),
-            'kegiatan_dengan_sub' => static::has('subKegiatan')->count(),
-            'kegiatan_tanpa_sub' => static::doesntHave('subKegiatan')->count(),
-            'total_anggaran' => static::join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
-                ->sum('sub_kegiatan.anggaran'),
-            'total_realisasi' => static::join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
-                ->sum('sub_kegiatan.realisasi'),
+            'total_kegiatan' => $stats->total_kegiatan ?? 0,
+            'kegiatan_dengan_sub' => $stats->kegiatan_dengan_sub ?? 0,
+            'kegiatan_tanpa_sub' => $stats->kegiatan_tanpa_sub ?? 0,
+            'total_anggaran' => $stats->total_anggaran ?? 0,
+            'total_realisasi' => $stats->total_realisasi ?? 0,
         ];
+    }
+    public static function getOptimizedList($filters = [])
+    {
+        $query = static::withOptimizedData();
+
+        if (isset($filters['program_id'])) {
+            $query->byProgram($filters['program_id']);
+        }
+
+        if (isset($filters['organisasi_id'])) {
+            $query->byOrganisasi($filters['organisasi_id']);
+        }
+
+        if (isset($filters['year'])) {
+            $query->forYear($filters['year']);
+        }
+
+        return $query;
     }
 }

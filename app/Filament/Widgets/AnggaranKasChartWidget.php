@@ -15,7 +15,10 @@ class AnggaranKasChartWidget extends ChartWidget
     protected int | string | array $columnSpan = 'full';
 
     protected static ?string $pollingInterval = '30s';
-
+    public static function canView(): bool
+    {
+        return false; // Selalu nonaktif
+    }
     protected function getData(): array
     {
         $activeYear = YearContext::getActiveYear();

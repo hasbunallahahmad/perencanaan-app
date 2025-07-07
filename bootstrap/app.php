@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\CacheHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use App\Http\Middleware\QueryOptimizationMiddleware;
 use App\Http\Middleware\SanitizeGlobalInput;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -20,22 +22,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             // Put sanitization AFTER CSRF verification to avoid token issues
             SanitizeGlobalInput::class,
-        ]);
 
+        ]);
+        // if (app()->environment('local')) {
+        //     $middleware->append(QueryOptimizationMiddleware::class);
+        // }
         // Or use as route-specific middleware (recommended)
         $middleware->alias([
             'sanitize' => SanitizeGlobalInput::class,
+            'cache.headers' => CacheHeaders::class,
         ]);
-
-        // Priority order for web middleware (Laravel 11+ handles this automatically)
-        // 1. EncryptCookies
-        // 2. AddQueuedCookiesToResponse  
-        // 3. StartSession
-        // 4. ShareErrorsFromSession
-        // 5. VerifyCsrfToken <- CSRF must come before sanitization
-        // 6. SanitizeGlobalInput <- Our middleware comes after
-        // 7. SubstituteBindings
+        $middleware->group('admin', [
+            'cache.headers',
+        ]);
     })
+    // ->withCommands([
+    //     \App\Console\Commands\OptimizeCacheCommand::class,
+    // ])
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();

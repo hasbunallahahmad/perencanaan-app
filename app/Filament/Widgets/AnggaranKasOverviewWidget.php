@@ -12,7 +12,10 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 class AnggaranKasOverviewWidget extends BaseWidget
 {
     protected static ?string $pollingInterval = '15s';
-
+    public static function canView(): bool
+    {
+        return false; // Selalu nonaktif
+    }
     protected function getStats(): array
     {
         $activeYear = YearContext::getActiveYear();

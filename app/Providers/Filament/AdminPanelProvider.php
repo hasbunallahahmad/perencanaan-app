@@ -5,11 +5,15 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\PerencanaanKinerja;
 use App\Filament\Pages\RealisasiKinerja;
 use App\Filament\Resources\ProgramResource;
+use App\Filament\Widgets\GreetingWidget;
 use App\Filament\Widgets\ProgramCategoryChart;
 use App\Filament\Widgets\ProgramOverviewWidget;
 use App\Filament\Widgets\RecentProgramsWidget;
-use App\Filament\Widgets\YearSelectorHeaderWidget;
+use App\Filament\Widgets\RencanaAnggaranKasWidget;
+use App\Filament\Widgets\RiwayatAnggaranKasWidget;
+use App\Filament\Widgets\YearSelectorWidget;
 use App\Http\Middleware\OwnerUserVerifiedMiddleware;
+use App\Models\RencanaAnggaranKas;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -54,9 +58,12 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 // Widgets\AccountWidget::class,
                 // Widgets\FilamentInfoWidget::class,
-                // YearSelectorHeaderWidget::class,
-                \App\Filament\Widgets\AnggaranKasOverviewWidget::class,
-                \App\Filament\Widgets\AnggaranKasChartWidget::class,
+                // \App\Filament\Widgets\AnggaranKasOverviewWidget::class,
+                // \App\Filament\Widgets\AnggaranKasChartWidget::class,
+                YearSelectorWidget::class,
+                GreetingWidget::class,
+                RencanaAnggaranKasWidget::class,
+                RiwayatAnggaranKasWidget::class,
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->middleware([
@@ -102,7 +109,8 @@ class AdminPanelProvider extends PanelProvider
             ->spa()
             ->plugins([
                 FilamentShieldPlugin::make(),
-            ])->authMiddleware([
+            ])
+            ->authMiddleware([
                 Authenticate::class,
                 // OwnerUserVerifiedMiddleware::class,
             ]);

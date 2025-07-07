@@ -293,7 +293,7 @@ class TujuanSasaranResource extends BaseResource
                                 Forms\Components\Placeholder::make('info')
                                     ->label('Informasi Target')
                                     ->content(function (Tujas $record): string {
-                                        return "Target: {$record->target} {$record->satuan}";
+                                        return "Target: " . number_format((float) $record->target, 3) . " " . $record->satuan;
                                     }),
 
                                 Forms\Components\Grid::make(2)
@@ -479,7 +479,7 @@ class TujuanSasaranResource extends BaseResource
 
                             Notification::make()
                                 ->title('Realisasi berhasil disimpan!')
-                                ->body("Total Realisasi: {$totalRealisasi} {$record->satuan} | Pencapaian: " . number_format($persentase, 2) . "%")
+                                ->body("Total Realisasi: " . number_format((float) $totalRealisasi, 3) . " " . $record->satuan . " | Pencapaian: " . number_format($persentase, 2) . "%")
                                 ->success()
                                 ->send();
                         } else {

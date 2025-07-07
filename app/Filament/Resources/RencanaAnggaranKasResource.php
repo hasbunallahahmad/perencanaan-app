@@ -25,7 +25,7 @@ class RencanaAnggaranKasResource extends Resource
     protected static ?string $modelLabel = 'Rencana Anggaran Kas';
 
     protected static ?string $pluralModelLabel = 'Rencana Anggaran Kas';
-
+    protected static ?int $navigationSort = 1;
     protected static ?string $navigationGroup = 'Manajemen Anggaran';
     public static function canAccess(): bool
     {
@@ -52,22 +52,16 @@ class RencanaAnggaranKasResource extends Resource
                                     ->default(date('Y'))
                                     ->required(),
 
-                                Forms\Components\Select::make('triwulan')
-                                    ->label('Triwulan')
+                                Forms\Components\Select::make('jenis_anggaran')
+                                    ->label('Jenis Anggaran')
                                     ->options([
-                                        '1' => 'Triwulan I (Jan-Mar)',
-                                        '2' => 'Triwulan II (Apr-Jun)',
-                                        '3' => 'Triwulan III (Jul-Sep)',
-                                        '4' => 'Triwulan IV (Okt-Des)',
+                                        'anggaran_murni' => 'Anggaran Murni',
+                                        'pergeseran' => 'Pergeseran',
+                                        'perubahan' => 'Perubahan',
                                     ])
-                                    ->required(),
+                                    ->required()
+                                    ->default('anggaran_murni'),
                             ]),
-
-                        Forms\Components\TextInput::make('kategori')
-                            ->label('Kategori')
-                            ->required()
-                            ->maxLength(255)
-                            ->placeholder('Contoh: Operasional, Investasi, Pemeliharaan'),
 
                         Forms\Components\Textarea::make('deskripsi')
                             ->label('Deskripsi')
@@ -99,7 +93,7 @@ class RencanaAnggaranKasResource extends Resource
                                 'approved' => 'Disetujui',
                                 'rejected' => 'Ditolak',
                             ])
-                            ->default('draft')
+                            ->default('approved')
                             ->required(),
 
                         Forms\Components\Textarea::make('catatan')
@@ -119,30 +113,30 @@ class RencanaAnggaranKasResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\BadgeColumn::make('triwulan')
-                    ->label('Triwulan')
-                    ->formatStateUsing(fn(string $state): string => "TW $state")
+                Tables\Columns\TextColumn::make('jenis_anggaran')
+                    ->label('Jenis Anggaran')
+                    ->badge()
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'anggaran_murni' => 'Anggaran Murni',
+                        'pergeseran' => 'Pergeseran',
+                        'perubahan' => 'Perubahan',
+                        default => $state,
+                    })
                     ->colors([
-                        'primary' => '1',
-                        'success' => '2',
-                        'warning' => '3',
-                        'danger' => '4',
+                        'primary' => 'anggaran_murni',
+                        'warning' => 'pergeseran',
+                        'success' => 'perubahan',
                     ])
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('kategori')
-                    ->label('Kategori')
-                    ->searchable()
-                    ->sortable()
-                    ->wrap(),
 
                 Tables\Columns\TextColumn::make('jumlah_rencana')
                     ->label('Jumlah Rencana')
                     ->money('IDR')
                     ->sortable(),
 
-                Tables\Columns\BadgeColumn::make('status')
+                Tables\Columns\TextColumn::make('status')
                     ->label('Status')
+                    ->badge()
                     ->colors([
                         'secondary' => 'draft',
                         'success' => 'approved',
@@ -178,13 +172,12 @@ class RencanaAnggaranKasResource extends Resource
                         return $years;
                     }),
 
-                SelectFilter::make('triwulan')
-                    ->label('Triwulan')
+                SelectFilter::make('jenis_anggaran')
+                    ->label('Jenis Anggaran')
                     ->options([
-                        '1' => 'Triwulan I',
-                        '2' => 'Triwulan II',
-                        '3' => 'Triwulan III',
-                        '4' => 'Triwulan IV',
+                        'anggaran_murni' => 'Anggaran Murni',
+                        'pergeseran' => 'Pergeseran',
+                        'perubahan' => 'Perubahan',
                     ]),
 
                 SelectFilter::make('status')

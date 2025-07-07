@@ -19,7 +19,6 @@ use Filament\Tables\Table;
 use Filament\Forms\Components\Wizard;
 use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\Actions\Action;
-use Illuminate\Support\HtmlString;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Select;
@@ -36,6 +35,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class RencanaAksiResource extends Resource
 {
     use HasYearFilter;
+    // use HasShieldPermissions;
 
     protected static ?string $model = RencanaAksi::class;
 
@@ -74,7 +74,12 @@ class RencanaAksiResource extends Resource
                                         ->schema([
                                             Select::make('bidang_id')
                                                 ->label('Bidang')
-                                                ->options(Bidang::getUniqueActive()->pluck('nama', 'id'))
+                                                ->options(
+                                                    Bidang::where('aktif', true)
+                                                        ->distinct()
+                                                        ->orderBy('nama')
+                                                        ->pluck('nama', 'id')
+                                                )
                                                 ->required()
                                                 ->searchable()
                                                 ->preload()

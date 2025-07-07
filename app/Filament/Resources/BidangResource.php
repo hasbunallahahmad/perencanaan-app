@@ -28,7 +28,17 @@ class BidangResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['organisasi']);
+            ->with(['organisasi:id,nama,aktif'])
+            ->select([
+                'id',
+                'nama',
+                'kode',
+                'is_sekretariat',
+                'aktif',
+                'organisasi_id',
+                'deskripsi',
+                'created_at',
+            ]);
     }
     public static function form(Form $form): Form
     {
@@ -108,7 +118,9 @@ class BidangResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('is_sekretariat', 'desc');
+            ->defaultSort('is_sekretariat', 'desc')
+            ->deferLoading()
+            ->defaultPaginationPageOption(25);
     }
 
     public static function getPages(): array
@@ -121,14 +133,16 @@ class BidangResource extends Resource
     }
     public static function getNavigationBadge(): ?string
     {
-        return Cache::remember('bidang_count', 300, function () {
+        return Cache::remember('bidang_count', 600, function () {
             return static::getModel()::count();
         });
     }
     private static function getCachedOrganisasi(): array
     {
-        return Cache::remember('organisasi_options', 300, function () {
+        return Cache::remember('organisasi_options', 3600, function () {
             return Organisasi::where('aktif', true)
+                ->select(['id', 'nama'])
+                ->orderBy('nama')
                 ->pluck('nama', 'id')
                 ->toArray();
         });

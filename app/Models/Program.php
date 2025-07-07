@@ -28,30 +28,26 @@ class Program extends Model
         'indikator_id_2',
         'tahun',
     ];
-    protected $dates = [
-        'created_at',
-        'updated_at',
-        'deleted_at',
-    ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'tahun' => 'integer',
     ];
 
+    // ✅ HANYA APPEND YANG TIDAK MELAKUKAN QUERY
     protected $appends = [
-        'total_anggaran',
-        'total_realisasi',
-        'persentase_serapan',
-        'formatted_anggaran',
-        'formatted_realisasi',
-        'total_kegiatan',
-        'total_sub_kegiatan',
         'kategori',
         'badge_color',
-        'indikator_list',
     ];
+
+    // ✅ CACHE PROPERTIES UNTUK MENGHINDARI QUERY BERULANG
+    protected $cachedTotalAnggaran;
+    protected $cachedTotalRealisasi;
+    protected $cachedTotalKegiatan;
+    protected $cachedTotalSubKegiatan;
+
     public static function validationRules($id = null)
     {
         return [
@@ -60,31 +56,36 @@ class Program extends Model
                 'string',
                 'max:20',
                 Rule::unique('program')
-                    ->where(function ($query) {
-                        return $query->where('tahun', request()->tahun);
-                    })
+                    ->where(fn($query) => $query->where('tahun', request()->tahun))
                     ->ignore($id)
             ],
             'tahun' => 'required|integer',
-            'nama_program' => 'required|string',
+            'nama_program' => 'required|string|max:500',
+            'organisasi_id' => 'required|exists:organisasi,id',
+            'indikator_id' => 'nullable|exists:master_indikator,id',
+            'indikator_id_2' => 'nullable|exists:master_indikator,id|different:indikator_id',
         ];
     }
+
     // ========== RELATIONSHIPS ==========
+    public function organisasi(): BelongsTo
+    {
+        return $this->belongsTo(Organisasi::class, 'organisasi_id', 'id');
+    }
+
     public function bidang()
     {
         return $this->belongsTo(Bidang::class, 'bidang_id');
     }
+
     public function indikator()
     {
         return $this->belongsTo(MasterIndikator::class, 'indikator_id');
     }
+
     public function indikator2()
     {
         return $this->belongsTo(MasterIndikator::class, 'indikator_id_2');
-    }
-    public function organisasi(): BelongsTo
-    {
-        return $this->belongsTo(Organisasi::class, 'organisasi_id', 'id');
     }
 
     public function kegiatan(): HasMany
@@ -97,109 +98,90 @@ class Program extends Model
         return $this->hasManyThrough(
             SubKegiatan::class,
             Kegiatan::class,
-            'id_program',        // Foreign key on kegiatan table
-            'id_kegiatan',       // Foreign key on sub_kegiatan table
-            'id_program',        // Local key on program table
-            'id_kegiatan'        // Local key on kegiatan table
+            'id_program',
+            'id_kegiatan',
+            'id_program',
+            'id_kegiatan'
         );
     }
 
-    // ========== OPTIMIZED ACCESSORS ==========
+    // ========== OPTIMIZED ACCESSORS WITH CACHING ==========
     public function getTotalAnggaranAttribute(): int
     {
-        // Priority 1: Jika sudah ada dari select query
+        // Priority 1: Dari select query withCalculatedTotals()
         if (isset($this->attributes['total_anggaran_calculated'])) {
             return (int) $this->attributes['total_anggaran_calculated'];
         }
 
-        // Priority 2: Jika relasi subKegiatan sudah di-load
+        // Priority 2: Dari eager loaded relations
         if ($this->relationLoaded('subKegiatan')) {
             return $this->subKegiatan->sum('anggaran');
         }
 
-        // Priority 3: Fallback ke query (seperti kode asli Anda)
-        return $this->kegiatan()
-            ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
-            ->sum('sub_kegiatan.anggaran') ?? 0;
+        // Priority 3: Cache untuk menghindari query berulang
+        if (!isset($this->cachedTotalAnggaran)) {
+            $this->cachedTotalAnggaran = $this->kegiatan()
+                ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+                ->sum('sub_kegiatan.anggaran') ?? 0;
+        }
+
+        return $this->cachedTotalAnggaran;
     }
 
     public function getTotalRealisasiAttribute(): int
     {
-        // Priority 1: Jika sudah ada dari select query
         if (isset($this->attributes['total_realisasi_calculated'])) {
             return (int) $this->attributes['total_realisasi_calculated'];
         }
 
-        // Priority 2: Jika relasi subKegiatan sudah di-load
         if ($this->relationLoaded('subKegiatan')) {
             return $this->subKegiatan->sum('realisasi');
         }
 
-        // Priority 3: Fallback ke query (seperti kode asli Anda)
-        return $this->kegiatan()
-            ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
-            ->sum('sub_kegiatan.realisasi') ?? 0;
+        if (!isset($this->cachedTotalRealisasi)) {
+            $this->cachedTotalRealisasi = $this->kegiatan()
+                ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+                ->sum('sub_kegiatan.realisasi') ?? 0;
+        }
+
+        return $this->cachedTotalRealisasi;
     }
 
     public function getTotalKegiatanAttribute(): int
     {
-        // Priority 1: Jika sudah ada dari withCount
         if (isset($this->attributes['kegiatan_count'])) {
             return (int) $this->attributes['kegiatan_count'];
         }
 
-        // Priority 2: Jika relasi kegiatan sudah di-load
         if ($this->relationLoaded('kegiatan')) {
             return $this->kegiatan->count();
         }
 
-        // Priority 3: Fallback ke query
-        return $this->kegiatan()->count();
+        if (!isset($this->cachedTotalKegiatan)) {
+            $this->cachedTotalKegiatan = $this->kegiatan()->count();
+        }
+
+        return $this->cachedTotalKegiatan;
     }
 
     public function getTotalSubKegiatanAttribute(): int
     {
-        // Priority 1: Jika sudah ada dari select query
         if (isset($this->attributes['total_sub_kegiatan_calculated'])) {
             return (int) $this->attributes['total_sub_kegiatan_calculated'];
         }
 
-        // Priority 2: Jika relasi sudah di-load
         if ($this->relationLoaded('subKegiatan')) {
             return $this->subKegiatan->count();
         }
 
-        // Priority 3: Fallback ke query
-        return $this->subKegiatan()->count();
-    }
-
-    public function getPersentaseRealisasiAttribute()
-    {
-        return $this->anggaran > 0 ? ($this->realisasi / $this->anggaran) * 100 : 0;
-    }
-
-    public function getPersentaseSerapanAttribute(): float
-    {
-        $totalAnggaran = $this->total_anggaran;
-        $totalRealisasi = $this->total_realisasi;
-
-        if ($totalAnggaran > 0) {
-            return round(($totalRealisasi / $totalAnggaran) * 100, 2);
+        if (!isset($this->cachedTotalSubKegiatan)) {
+            $this->cachedTotalSubKegiatan = $this->subKegiatan()->count();
         }
 
-        return 0;
+        return $this->cachedTotalSubKegiatan;
     }
 
-    public function getFormattedAnggaranAttribute(): string
-    {
-        return 'Rp ' . number_format($this->total_anggaran, 0, ',', '.');
-    }
-
-    public function getFormattedRealisasiAttribute(): string
-    {
-        return 'Rp ' . number_format($this->total_realisasi, 0, ',', '.');
-    }
-
+    // ✅ ACCESSOR YANG TIDAK MELAKUKAN QUERY - AMAN UNTUK APPENDS
     public function getKategoriAttribute(): string
     {
         $kode = $this->kode_program;
@@ -233,52 +215,63 @@ class Program extends Model
             default => 'gray',
         };
     }
-    public function getAllIndikators()
+
+    // ✅ ACCESSOR YANG BISA DIPANGGIL MANUAL (TIDAK DI APPENDS)
+    public function getPersentaseSerapanAttribute(): float
     {
-        $indikators = collect();
+        $totalAnggaran = $this->total_anggaran;
+        $totalRealisasi = $this->total_realisasi;
 
-        if ($this->indikator) {
-            $indikators->push($this->indikator);
+        if ($totalAnggaran > 0) {
+            return round(($totalRealisasi / $totalAnggaran) * 100, 2);
         }
 
-        if ($this->indikator2) {
-            $indikators->push($this->indikator2);
-        }
-
-        return $indikators;
+        return 0;
     }
+
+    public function getFormattedAnggaranAttribute(): string
+    {
+        return 'Rp ' . number_format($this->total_anggaran, 0, ',', '.');
+    }
+
+    public function getFormattedRealisasiAttribute(): string
+    {
+        return 'Rp ' . number_format($this->total_realisasi, 0, ',', '.');
+    }
+
     public function getIndikatorListAttribute(): string
     {
         $indikators = [];
 
-        if ($this->indikator) {
+        if ($this->relationLoaded('indikator') && $this->indikator) {
             $indikators[] = $this->indikator->nama_indikator;
         }
 
-        if ($this->indikator2) {
+        if ($this->relationLoaded('indikator2') && $this->indikator2) {
             $indikators[] = $this->indikator2->nama_indikator;
         }
 
         return implode(', ', $indikators);
     }
-    // ========== SCOPES ==========
 
-    // TAMBAHAN: Scope untuk filter berdasarkan indikator
-    public function scopeByIndikator($query, $indikatorId)
+    // ========== METHODS ==========
+    public function getAllIndikators()
     {
-        return $query->where(function ($q) use ($indikatorId) {
-            $q->where('indikator_id', $indikatorId)
-                ->orWhere('indikator_id_2', $indikatorId);
-        });
-    }
+        $indikators = collect();
 
-    // TAMBAHAN: Scope untuk program yang memiliki indikator tertentu
-    public function scopeHasIndikator($query, $indikatorId)
-    {
-        return $query->where(function ($q) use ($indikatorId) {
-            $q->where('indikator_id', $indikatorId)
-                ->orWhere('indikator_id_2', $indikatorId);
-        });
+        if ($this->relationLoaded('indikator') && $this->indikator) {
+            $indikators->push($this->indikator);
+        } elseif (!$this->relationLoaded('indikator') && $this->indikator_id) {
+            $indikators->push($this->indikator);
+        }
+
+        if ($this->relationLoaded('indikator2') && $this->indikator2) {
+            $indikators->push($this->indikator2);
+        } elseif (!$this->relationLoaded('indikator2') && $this->indikator_id_2) {
+            $indikators->push($this->indikator2);
+        }
+
+        return $indikators;
     }
 
     // ========== SCOPES ==========
@@ -296,6 +289,22 @@ class Program extends Model
     public function scopeByOrganisasi($query, int $organisasiId)
     {
         return $query->where('organisasi_id', $organisasiId);
+    }
+
+    public function scopeByIndikator($query, $indikatorId)
+    {
+        return $query->where(function ($q) use ($indikatorId) {
+            $q->where('indikator_id', $indikatorId)
+                ->orWhere('indikator_id_2', $indikatorId);
+        });
+    }
+
+    public function scopeHasIndikator($query, $indikatorId)
+    {
+        return $query->where(function ($q) use ($indikatorId) {
+            $q->where('indikator_id', $indikatorId)
+                ->orWhere('indikator_id_2', $indikatorId);
+        });
     }
 
     public function scopeHasKegiatan($query)
@@ -369,19 +378,35 @@ class Program extends Model
     // ========== STATIC METHODS ==========
     public static function getStatistics(): array
     {
+        // ✅ OPTIMIZED - Single query untuk multiple statistics
+        $baseQuery = static::query();
+
         return [
-            'total_program' => static::count(),
-            'program_dengan_kegiatan' => static::has('kegiatan')->count(),
-            'program_tanpa_kegiatan' => static::doesntHave('kegiatan')->count(),
-            'program_penunjang' => static::penunjang()->count(),
-            'program_pug' => static::pug()->count(),
-            'program_anak' => static::anak()->count(),
-            'total_anggaran_semua' => static::join('kegiatan', 'program.id_program', '=', 'kegiatan.id_program')
-                ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
-                ->sum('sub_kegiatan.anggaran'),
-            'total_realisasi_semua' => static::join('kegiatan', 'program.id_program', '=', 'kegiatan.id_program')
-                ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
-                ->sum('sub_kegiatan.realisasi'),
+            'total_program' => $baseQuery->count(),
+            'program_dengan_kegiatan' => $baseQuery->has('kegiatan')->count(),
+            'program_tanpa_kegiatan' => $baseQuery->doesntHave('kegiatan')->count(),
+            'program_penunjang' => $baseQuery->penunjang()->count(),
+            'program_pug' => $baseQuery->pug()->count(),
+            'program_anak' => $baseQuery->anak()->count(),
+            // Untuk total anggaran/realisasi, gunakan aggregated query
+            ...$baseQuery->selectRaw('
+                COALESCE(SUM(anggaran_data.total_anggaran), 0) as total_anggaran_semua,
+                COALESCE(SUM(anggaran_data.total_realisasi), 0) as total_realisasi_semua
+            ')
+                ->leftJoinSub(
+                    function ($query) {
+                        $query->from('kegiatan')
+                            ->join('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
+                            ->select('kegiatan.id_program')
+                            ->selectRaw('SUM(sub_kegiatan.anggaran) as total_anggaran')
+                            ->selectRaw('SUM(sub_kegiatan.realisasi) as total_realisasi')
+                            ->groupBy('kegiatan.id_program');
+                    },
+                    'anggaran_data',
+                    'program.id_program',
+                    '=',
+                    'anggaran_data.id_program'
+                )->first()->toArray()
         ];
     }
 }

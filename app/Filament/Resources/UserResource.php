@@ -8,6 +8,7 @@ use App\Models\Bidang;
 use App\Models\Organisasi;
 use App\Models\Seksi;
 use App\Models\User;
+use App\Services\CacheService;
 use DateTime;
 use Filament\Forms;
 use Filament\Forms\Components\Section;
@@ -26,7 +27,6 @@ use Spatie\Permission\Models\Role;
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
-
     // protected static ?string $navigationIcon = 'heroicon-o-users';
     protected static ?string $navigationGroup = 'Pengguna dan SOTK';
     protected static ?int $navigationSort = 1;
@@ -47,57 +47,80 @@ class UserResource extends Resource
     {
         return parent::getEloquentQuery()
             ->with([
-                'roles',
-                'permissions',
-                'organisasi',
-                'bidang',
-                'seksi'
+                'roles:id,name',
+                'permissions:id,name',
+                'organisasi:id,nama',
+                'bidang:id,nama,organisasi_id',
+                'seksi:id,nama,bidang_id'
+            ])
+            ->select([
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.email_verified_at',
+                'users.organisasi_id',
+                'users.bidang_id',
+                'users.seksi_id',
+                'users.created_at',
+                'users.updated_at'
             ]);
     }
-    protected static function getCachedOrganisasi(): array
-    {
-        return Cache::remember('organisasi_options', 300, function () {
-            return Organisasi::where('aktif', true)
-                ->orderBy('nama')
-                ->pluck('nama', 'id')
-                ->toArray();
-        });
-    }
+    // protected static function getCachedOrganisasi(): array
+    // {
+    //     return Cache::remember('organisasi_options_v2', 3600, function () {
+    //         return Organisasi::where('aktif', true)
+    //             ->orderBy('nama')
+    //             ->pluck('nama', 'id')
+    //             ->toArray();
+    //     });
+    // }
 
-    protected static function getCachedBidangByOrganisasi(?int $organisasiId)
-    {
-        if (!$organisasiId) {
-            return collect();
-        }
+    // protected static function getCachedBidangByOrganisasi(?int $organisasiId)
+    // {
+    //     if (!$organisasiId) {
+    //         return [];
+    //     }
+    //     return Cache::remember("bidang_by_organisasi_v2_{$organisasiId}", 3600, function () use ($organisasiId) {
+    //         return Bidang::where('organisasi_id', $organisasiId)
+    //             ->where('aktif', true)
+    //             ->orderBy('nama')
+    //             ->pluck('nama', 'id')
+    //             ->toArray();
+    //     });
+    // }
+    // protected static function getCachedSeksiByBidang(?int $bidangId)
+    // {
+    //     if (!$bidangId) {
+    //         return [];
+    //     }
 
-        return Cache::remember("bidang_by_organisasi_{$organisasiId}", 300, function () use ($organisasiId) {
-            return Bidang::where('organisasi_id', $organisasiId)
-                ->where('aktif', true)
-                ->orderBy('nama')
-                ->get();
-        });
-    }
-    protected static function getCachedSeksiByBidang(?int $bidangId)
-    {
-        if (!$bidangId) {
-            return collect();
-        }
-
-        return Cache::remember("seksi_by_bidang_{$bidangId}", 300, function () use ($bidangId) {
-            return Seksi::where('bidang_id', $bidangId)
-                ->where('aktif', true)
-                ->orderBy('nama')
-                ->get();
-        });
-    }
-    protected static function getCachedRoles(): array
-    {
-        return Cache::remember('roles_options', 300, function () {
-            return Role::orderBy('name')
-                ->pluck('name', 'name')
-                ->toArray();
-        });
-    }
+    //     return Cache::remember("seksi_by_bidang_v2_{$bidangId}", 3600, function () use ($bidangId) {
+    //         return Seksi::where('bidang_id', $bidangId)
+    //             ->where('aktif', true)
+    //             ->orderBy('nama')
+    //             ->pluck('nama', 'id')
+    //             ->toArray();
+    //     });
+    // }
+    // protected static function getCachedRoles(): array
+    // {
+    //     return Cache::remember('roles_options_v2', 3600, function () {
+    //         return Role::orderBy('name')
+    //             ->pluck('name', 'name')
+    //             ->toArray();
+    //     });
+    // }
+    // protected static function getCachedFormData(): array
+    // {
+    //     return Cache::remember('user_form_data_v2', 3600, function () {
+    //         return [
+    //             'organisasi' => Organisasi::where('aktif', true)->orderBy('nama')->get(['id', 'nama']),
+    //             'bidang' => Bidang::where('aktif', true)->orderBy('nama')->get(['id', 'nama', 'organisasi_id']),
+    //             'seksi' => Seksi::where('aktif', true)->orderBy('nama')->get(['id', 'nama', 'bidang_id']),
+    //             'roles' => Role::orderBy('name')->pluck('name', 'name')->toArray()
+    //         ];
+    //     });
+    // }
     public static function form(Form $form): Form
     {
         return $form
@@ -122,39 +145,32 @@ class UserResource extends Resource
                             ->required(fn(string $context) => $context === 'create')
                             ->minLength(8)
                             ->maxLength(255),
-
                         Forms\Components\Select::make('organisasi_id')
                             ->label('Organisasi')
-                            ->options(fn() => self::getCachedOrganisasi())
+                            ->options(CacheService::getOrganisasiAktif())
                             ->searchable()
                             ->preload()
-                            ->live()
+                            ->live(onBlur: true) // Only trigger on blur, not every keystroke
                             ->afterStateUpdated(function (Forms\Set $set) {
                                 $set('bidang_id', null);
                                 $set('seksi_id', null);
                             }),
                         Forms\Components\Select::make('bidang_id')
                             ->label('Bidang/Sekretariat')
-                            ->options(
-                                fn(Get $get): array =>
-                                self::getCachedBidangByOrganisasi($get('organisasi_id'))
-                                    ->where('aktif', true)
-                                    ->pluck('nama', 'id')
-                                    ->toArray()
-                            )
+                            ->options(function (Get $get): array {
+                                $organisasiId = $get('organisasi_id');
+                                return $organisasiId ? CacheService::getBidangByOrganisasi($organisasiId) : [];
+                            })
                             ->searchable()
                             ->preload()
-                            ->live()
+                            ->live(onBlur: true)
                             ->afterStateUpdated(fn(Forms\Set $set) => $set('seksi_id', null)),
                         Forms\Components\Select::make('seksi_id')
                             ->label('Seksi/Subbagian')
-                            ->options(
-                                fn(Get $get): array =>
-                                self::getCachedSeksiByBidang($get('bidang_id'))
-                                    ->where('aktif', true)
-                                    ->pluck('nama', 'id')
-                                    ->toArray()
-                            )
+                            ->options(function (Get $get): array {
+                                $bidangId = $get('bidang_id');
+                                return $bidangId ? CacheService::getSeksiByBidang($bidangId) : [];
+                            })
                             ->searchable()
                             ->preload(),
                     ])
@@ -162,18 +178,26 @@ class UserResource extends Resource
                 Forms\Components\Section::make('Role & Permissions')
                     ->schema([
                         Forms\Components\Select::make('roles')
-                            ->relationship('roles', 'name')
-                            ->multiple()
+                            ->label('Roles')
+                            ->options(CacheService::getRoles())
                             ->preload()
                             ->searchable()
-                            ->label('Roles')
-                            ->helperText('Anda Dapat Memilih Lebih Dari Satu Role'),
+                            ->helperText('Anda Dapat Memilih Lebih Dari Satu Role')
+                            ->default(function ($record) {
+                                return $record ? $record->roles->pluck('name')->toArray() : [];
+                            })
+                            ->dehydrated(false),
                         Forms\Components\Select::make('permissions')
-                            ->relationship('permissions', 'name')
+                            ->label('Direct Permissions')
+                            ->options(CacheService::getPermissions())
                             ->multiple()
                             ->searchable()
-                            ->label('Direct Permissions')
-                            ->helperText('Anda Dapat Memilih Lebih Dari Satu Permission'),
+                            ->preload()
+                            ->helperText('Anda Dapat Memilih Lebih Dari Satu Permission')
+                            ->default(function ($record) {
+                                return $record ? $record->permissions->pluck('name')->toArray() : [];
+                            })
+                            ->dehydrated(false),
                     ])
                     ->columns(2),
             ]);
@@ -185,22 +209,28 @@ class UserResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
+                    ->label('nama')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('email')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('roles.name')
+                Tables\Columns\TextColumn::make('roles_display')
+                    ->label('Roles')
                     ->badge()
                     ->separator(',')
                     ->color('success')
-                    ->label('Roles'),
+                    ->state(function (User $record): string {
+                        return $record->roles->pluck('name')->join(', ');
+                    }),
                 Tables\Columns\TextColumn::make('organisasi.nama')
                     ->label('Organisasi')
                     ->sortable()
+                    ->state(fn(User $record): ?string => $record->organisasi?->nama)
                     ->wrap()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('bidang.nama')
                     ->label('Bidang')
+                    ->state(fn(User $record): ?string => $record->bidang?->nama)
                     ->wrap()
                     ->sortable()
                     ->toggleable(),
@@ -253,9 +283,8 @@ class UserResource extends Resource
                         ->icon('heroicon-o-check-badge')
                         ->color('success')
                         ->action(function ($records) {
-                            $records->each(function ($record) {
-                                $record->update(['email_verified_at' => now()]);
-                            });
+                            User::whereIn('id', $records->pluck('id'))
+                                ->update(['email_verified_at' => now()]);
                         })
                         ->requiresConfirmation()
                         ->deselectRecordsAfterCompletion(),
@@ -270,14 +299,15 @@ class UserResource extends Resource
                                 ->required(),
                         ])
                         ->action(function (array $data, $records) {
-                            $records->each(function ($record) use ($data) {
+                            foreach ($records as $record) {
                                 $record->assignRole($data['role']);
-                            });
+                            }
                         })
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->deferLoading(); // Add this to improve initial load performance
     }
 
     public static function getRelations(): array
@@ -298,7 +328,7 @@ class UserResource extends Resource
     }
     public static function getNavigationBadge(): ?string
     {
-        return Cache::remember('user_count', 300, function () {
+        return Cache::remember('user_count_v2', 3600, function () {
             return static::getModel()::count();
         });
     }

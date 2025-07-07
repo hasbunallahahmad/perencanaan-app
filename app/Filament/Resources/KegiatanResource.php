@@ -32,18 +32,12 @@ use Illuminate\Validation\Rules\Unique;
 class KegiatanResource extends BaseResource
 {
     protected static ?string $model = Kegiatan::class;
-
-    // protected static ?string $navigationIcon = 'heroicon-o-document-text';
-
     protected static ?string $navigationLabel = 'Kegiatan';
-
     protected static ?string $pluralLabel = 'Kegiatan';
     protected static ?string $pluralModelLabel = 'Kegiatan';
     protected static ?string $navigationGroup = 'Master Data';
-
     protected static ?int $navigationSort = 2;
     use HasYearFilter;
-
     protected static function getTableQuery(): Builder
     {
         return parent::getTableQuery()->where('tahun', YearContext::getActiveYear());
@@ -149,6 +143,16 @@ class KegiatanResource extends BaseResource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(
+                fn(Builder $query) =>
+                $query->withSum(['subKegiatan' => function ($query) {
+                    $query->whereNull('deleted_at');
+                }], 'anggaran')
+                    ->withSum(['subKegiatan' => function ($query) {
+                        $query->whereNull('deleted_at');
+                    }], 'realisasi')
+                    ->with(['program.organisasi', 'indikator'])
+            )
             ->columns([
                 TextColumn::make('kode_kegiatan')
                     ->label('Kode Kegiatan')
@@ -164,36 +168,56 @@ class KegiatanResource extends BaseResource
                     ->wrap()
                     ->limit(100),
 
-                TextColumn::make('program.organisasi.nama')
-                    ->label('Organisasi')
-                    ->searchable()
-                    ->sortable()
-                    ->wrap()
-                    ->limit(30)
-                    ->toggleable(isToggledHiddenByDefault: true),
+                // TextColumn::make('program.organisasi.nama')
+                //     ->label('Organisasi')
+                //     ->searchable()
+                //     ->sortable()
+                //     ->wrap()
+                //     ->limit(30)
+                //     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('indikator.nama_indikator')
-                    ->label('Indikator')
-                    ->searchable()
-                    ->wrap()
-                    // ->limit(60)
-                    ->placeholder('Belum ada indikator')
-                    ->toggleable(isToggledHiddenByDefault: false),
+                // TextColumn::make('indikator.nama_indikator')
+                //     ->label('Indikator')
+                //     ->searchable()
+                //     ->wrap()
+                //     // ->limit(60)
+                //     ->placeholder('Belum ada indikator')
+                //     ->toggleable(isToggledHiddenByDefault: false),
 
-                TextColumn::make('anggaran')
+                TextColumn::make('sub_kegiatan_sum_anggaran')
                     ->label('Total Anggaran')
                     ->money('IDR')
                     ->sortable()
-                    ->alignEnd(),
+                    ->alignEnd()
+                    ->formatStateUsing(fn($state) => 'Rp ' . number_format($state ?? 0, 0, ',', '.')),
 
-                TextColumn::make('realisasi')
+                TextColumn::make('sub_kegiatan_sum_realisasi')
                     ->label('Total Realisasi')
                     ->money('IDR')
                     ->sortable()
-                    ->alignEnd(),
+                    ->alignEnd()
+                    ->formatStateUsing(fn($state) => 'Rp ' . number_format($state ?? 0, 0, ',', '.')),
 
                 TextColumn::make('persentase_serapan')
-                    ->label('Serapan (%)')
+                    // ->label('Serapan (%)')
+                    // ->formatStateUsing(fn($state) => $state . '%')
+                    // ->sortable()
+                    // ->alignCenter()
+                    // ->badge()
+                    // ->color(fn($state) => match (true) {
+                    //     $state >= 80 => 'success',
+                    //     $state >= 60 => 'warning',
+                    //     default => 'danger',
+                    // }),
+                    ->getStateUsing(function ($record) {
+                        $anggaran = $record->sub_kegiatan_sum_anggaran ?? 0;
+                        $realisasi = $record->sub_kegiatan_sum_realisasi ?? 0;
+
+                        if ($anggaran > 0) {
+                            return round(($realisasi / $anggaran) * 100, 2);
+                        }
+                        return 0;
+                    })
                     ->formatStateUsing(fn($state) => $state . '%')
                     ->sortable()
                     ->alignCenter()
@@ -211,36 +235,18 @@ class KegiatanResource extends BaseResource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('id_program')
-                    ->label('Program')
-                    ->options(function () {
-                        return Program::where('tahun', YearContext::getActiveYear())
-                            ->pluck('nama_program', 'id_program');
-                    })
-                    ->searchable(),
+                // SelectFilter::make('id_program')
+                //     ->label('Program')
+                //     ->options(function () {
+                //         return Program::where('tahun', YearContext::getActiveYear())
+                //             ->pluck('nama_program', 'id_program');
+                //     })
+                //     ->searchable(),
 
-                SelectFilter::make('organisasi')
-                    ->label('Organisasi')
-                    ->options(function () {
-                        return Program::with('organisasi')
-                            ->where('tahun', YearContext::getActiveYear())
-                            ->get()
-                            ->pluck('organisasi.nama', 'organisasi.id')
-                            ->filter()
-                            ->unique();
-                    })
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query->when(
-                            $data['value'] ?? null,
-                            fn(Builder $query, $value): Builder => $query->whereHas('program.organisasi', fn(Builder $query) => $query->where('id', $value))
-                        );
-                    })
-                    ->searchable(),
-
-                SelectFilter::make('indikator_id')
-                    ->label('Indikator')
-                    ->options(MasterIndikator::all()->pluck('nama_indikator', 'id'))
-                    ->searchable(),
+                // SelectFilter::make('indikator_id')
+                //     ->label('Indikator')
+                //     ->options(MasterIndikator::all()->pluck('nama_indikator', 'id'))
+                //     ->searchable(),
 
                 SelectFilter::make('serapan')
                     ->label('Tingkat Serapan')
@@ -277,12 +283,15 @@ class KegiatanResource extends BaseResource
                     ->icon('heroicon-o-pencil')
                     ->color('warning')
                     ->label('')
-                    ->hidden(fn() => Auth::user()->hasRole('panel_user'))
+                    ->hidden(fn() => Auth::user()
+                        ->hasRole('panel_user'))
                     ->tooltip('Ubah'),
                 DeleteAction::make()
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->label('')->hidden(fn() => Auth::user()->hasRole('panel_user'))
+                    ->label('')
+                    ->hidden(fn() => Auth::user()
+                        ->hasRole('panel_user'))
                     ->tooltip('Hapus'),
             ])
             ->bulkActions([

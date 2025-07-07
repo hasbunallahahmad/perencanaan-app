@@ -9,11 +9,12 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 
 class OrganisasiResource extends Resource
 {
     protected static ?string $model = Organisasi::class;
-    // protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
     protected static ?string $navigationGroup = 'Pengguna dan SOTK';
     protected static ?string $modelLabel = 'Organisasi';
     protected static ?string $pluralModelLabel = 'Organisasi';
@@ -21,6 +22,27 @@ class OrganisasiResource extends Resource
     public static function canAccess(): bool
     {
         return \Illuminate\Support\Facades\Auth::user()->hasRole('super_admin');
+    }
+    /*************  ✨ Windsurf Command ⭐  *************/
+    /**
+     * {@inheritdoc}
+     *
+     * Scope query untuk table organisasi.
+     * Menggunakan scope `withAllCounts` untuk menghitung jumlah bidang, seksi, dan user.
+     * Hanya select field yang diperlukan untuk table.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withAllCounts() // Menggunakan scope dari model
+            ->select([
+                'id',
+                'nama',
+                'kota',
+                'aktif',
+                'created_at'
+                // Hanya select field yang diperlukan untuk table
+            ]);
     }
     public static function form(Form $form): Form
     {
@@ -91,7 +113,10 @@ class OrganisasiResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->striped()
+            ->paginated([10, 25, 50, 100])
+            ->deferLoading();
     }
 
     public static function getPages(): array
@@ -104,6 +129,10 @@ class OrganisasiResource extends Resource
     }
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::count();
+        return Cache::remember(
+            'organisasi_navigation_count',
+            now()->addMinutes(10),
+            fn() => number_format(static::getModel()::count())
+        );
     }
 }

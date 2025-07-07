@@ -1,11 +1,11 @@
 <?php
-// app/Filament/Resources/RealisasiAnggaranKasResource.php
 
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RealisasiAnggaranKasResource\Pages;
 use App\Models\RealisasiAnggaranKas;
 use App\Models\RencanaAnggaranKas;
+use App\Services\YearContext;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -27,12 +27,14 @@ class RealisasiAnggaranKasResource extends Resource
     protected static ?string $modelLabel = 'Realisasi Anggaran Kas';
 
     protected static ?string $pluralModelLabel = 'Realisasi Anggaran Kas';
-
+    protected static ?int $navigationSort = 2;
     protected static ?string $navigationGroup = 'Manajemen Anggaran';
+
     public static function canAccess(): bool
     {
         return \Illuminate\Support\Facades\Auth::user()->hasRole('super_admin');
     }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -42,98 +44,94 @@ class RealisasiAnggaranKasResource extends Resource
                         Forms\Components\Select::make('rencana_anggaran_kas_id')
                             ->label('Rencana Anggaran Kas')
                             ->options(function () {
+                                $activeYear = YearContext::getActiveYear();
                                 return RencanaAnggaranKas::where('status', 'approved')
+                                    ->where('tahun', $activeYear)
                                     ->get()
                                     ->mapWithKeys(function ($item) {
                                         return [
-                                            $item->id => "{$item->tahun} - TW {$item->triwulan} - {$item->kategori} (Rp " . number_format($item->jumlah_rencana, 0, ',', '.') . ")"
+                                            $item->id => "{$item->tahun} - {$item->jenis_anggaran_text} (Rp " . number_format($item->jumlah_rencana, 0, ',', '.') . ")"
                                         ];
                                     });
                             })
                             ->required()
                             ->searchable()
-                            ->live() // Changed from reactive() to live()
+                            ->live()
                             ->afterStateUpdated(function (callable $set, $state) {
                                 if ($state) {
                                     $rencana = RencanaAnggaranKas::find($state);
                                     if ($rencana) {
                                         $set('tahun', $rencana->tahun);
-                                        $set('triwulan', $rencana->triwulan);
-                                        $set('kategori', $rencana->kategori);
+                                        $set('deskripsi', $rencana->deskripsi);
                                     }
                                 } else {
-                                    // Clear fields when no selection
                                     $set('tahun', null);
-                                    $set('triwulan', null);
-                                    $set('kategori', null);
+                                    $set('deskripsi', null);
                                 }
                             }),
                     ]),
-
-                // Forms\Components\Section::make('Informasi Realisasi')
-                //     ->schema([
-                //         Forms\Components\Grid::make(2)
-                //             ->schema([
-                //                 Forms\Components\Hidden::make('tahun'), // Hidden field to store the value
-                //                 Forms\Components\TextInput::make('tahun_display')
-                //                     ->label('Tahun')
-                //                     ->disabled()
-                //                     ->dehydrated(false) // Don't include in form data
-                //                     ->live()
-                //                     ->afterStateHydrated(function (Forms\Components\TextInput $component, $state, $record) {
-                //                         if ($record && $record->tahun) {
-                //                             $component->state($record->tahun);
-                //                         }
-                //                     }),
-
-                //                 Forms\Components\Hidden::make('triwulan'), // Hidden field to store the value
-                //                 Forms\Components\TextInput::make('triwulan_display')
-                //                     ->label('Triwulan')
-                //                     ->disabled()
-                //                     ->dehydrated(false) // Don't include in form data
-                //                     ->live()
-                //                     ->afterStateHydrated(function (Forms\Components\TextInput $component, $state, $record) {
-                //                         if ($record && $record->triwulan) {
-                //                             $component->state($record->triwulan);
-                //                         }
-                //                     }),
-                //             ]),
-
-                // Forms\Components\Hidden::make('kategori'), // Hidden field to store the value
-                // Forms\Components\TextInput::make('kategori_display')
-                //     ->label('Kategori')
-                //     ->disabled()
-                //     ->dehydrated(false) // Don't include in form data
-                //     ->live()
-                //     ->afterStateHydrated(function (Forms\Components\TextInput $component, $state, $record) {
-                //         if ($record && $record->kategori) {
-                //             $component->state($record->kategori);
-                //         }
-                //     }),
-
-                //     Forms\Components\Textarea::make('deskripsi')
-                //         ->label('Deskripsi Realisasi')
-                //         ->rows(3)
-                //         ->placeholder('Deskripsi detail mengenai realisasi anggaran'),
-                // ])
-                // ->collapsible(),
 
                 Forms\Components\Section::make('Detail Realisasi')
                     ->schema([
                         Forms\Components\Grid::make(2)
                             ->schema([
+                                Forms\Components\Hidden::make('tahun'),
+                                Forms\Components\Hidden::make('kategori'),
+
+                                Forms\Components\Select::make('triwulan')
+                                    ->label('Triwulan')
+                                    ->options([
+                                        '1' => 'Triwulan I',
+                                        '2' => 'Triwulan II',
+                                        '3' => 'Triwulan III',
+                                        '4' => 'Triwulan IV',
+                                    ])
+                                    ->required()
+                                    // ->default(function () {
+                                    //     // Set default triwulan berdasarkan bulan saat ini
+                                    //     $month = date('n');
+
+                                    //     if ($month >= 1 && $month <= 3) {
+                                    //         return 1;
+                                    //     } elseif ($month >= 4 && $month <= 6) {
+                                    //         return 2;
+                                    //     } elseif ($month >= 7 && $month <= 9) {
+                                    //         return 3;
+                                    //     } else {
+                                    //         return 4;
+                                    //     }
+                                    // })
+                                    ->native(false),
+
                                 Forms\Components\TextInput::make('jumlah_realisasi')
                                     ->label('Jumlah Realisasi (Rp)')
                                     ->numeric()
                                     ->required()
                                     ->prefix('Rp')
-                                    ->placeholder('0'),
+                                    ->placeholder('0')
+                                    ->reactive()
+                                    ->debounce(1000)
+                                    ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                        $rencanaId = $get('rencana_anggaran_kas_id');
+                                        if ($rencanaId && $state) {
+                                            $rencana = RencanaAnggaranKas::find($rencanaId);
+                                            if ($rencana && $rencana->jumlah_rencana > 0) {
+                                                $percentage = round(($state / $rencana->jumlah_rencana) * 100, 2);
+                                                $set('persentase_display', $percentage . '%');
+                                            }
+                                        }
+                                    }),
 
                                 Forms\Components\DatePicker::make('tanggal_realisasi')
                                     ->label('Tanggal Realisasi')
                                     ->required()
                                     ->default(now()),
                             ]),
+
+                        Forms\Components\Textarea::make('deskripsi')
+                            ->label('Deskripsi Realisasi')
+                            ->rows(3)
+                            ->placeholder('Deskripsi detail mengenai realisasi anggaran'),
 
                         Forms\Components\Select::make('status')
                             ->label('Status')
@@ -142,19 +140,27 @@ class RealisasiAnggaranKasResource extends Resource
                                 'completed' => 'Selesai',
                                 'cancelled' => 'Dibatalkan',
                             ])
-                            ->default('pending')
+                            ->default('completed')
                             ->required(),
 
-                        Forms\Components\FileUpload::make('bukti_dokumen')
-                            ->label('Bukti Dokumen')
-                            ->directory('bukti-realisasi')
-                            ->acceptedFileTypes(['application/pdf', 'image/*'])
-                            ->maxSize(5120), // 5MB
+                        // Forms\Components\FileUpload::make('bukti_dokumen')
+                        //     ->label('Bukti Dokumen Maksimal *5MB*')
+                        //     ->directory('bukti-realisasi')
+                        //     ->acceptedFileTypes(['application/pdf', 'image/*'])
+                        //     ->maxSize(5120), // 5MB
 
                         Forms\Components\Textarea::make('catatan_realisasi')
                             ->label('Catatan Realisasi')
                             ->rows(3)
                             ->placeholder('Catatan tambahan mengenai realisasi'),
+
+                        // Display field for percentage (read-only)
+                        Forms\Components\TextInput::make('persentase_display')
+                            ->label('Persentase Realisasi')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->suffix('%')
+                            ->placeholder('0%'),
                     ]),
             ]);
     }
@@ -163,12 +169,12 @@ class RealisasiAnggaranKasResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('rencanaAnggaranKas.tahun')
+                Tables\Columns\TextColumn::make('tahun')
                     ->label('Tahun')
                     ->sortable()
                     ->searchable(),
 
-                TextColumn::make('rencanaAnggaranKas.triwulan')
+                TextColumn::make('triwulan')
                     ->label('Triwulan')
                     ->badge()
                     ->formatStateUsing(fn(string $state): string => "TW $state")
@@ -180,16 +186,17 @@ class RealisasiAnggaranKasResource extends Resource
                     ])
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('kategori')
-                    ->label('Kategori')
-                    ->searchable()
+                Tables\Columns\TextColumn::make('rencanaAnggaranKas.jenis_anggaran_text')
+                    ->label('Rencana (Rp)')
+                    ->money('IDR')
                     ->sortable()
-                    ->wrap(),
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('rencanaAnggaranKas.jumlah_rencana')
                     ->label('Rencana (Rp)')
                     ->money('IDR')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('jumlah_realisasi')
                     ->label('Realisasi (Rp)')
@@ -226,11 +233,12 @@ class RealisasiAnggaranKasResource extends Resource
                     ->date()
                     ->sortable(),
 
-                Tables\Columns\IconColumn::make('bukti_dokumen')
-                    ->label('Bukti')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-document-check')
-                    ->falseIcon('heroicon-o-document-minus'),
+                // Tables\Columns\IconColumn::make('bukti_dokumen')
+                //     ->label('Bukti')
+                //     ->boolean()
+                //     ->trueIcon('heroicon-o-document-check')
+                //     ->falseIcon('heroicon-o-document-minus')
+                //     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Dibuat')
@@ -249,12 +257,7 @@ class RealisasiAnggaranKasResource extends Resource
                         }
                         return $years;
                     })
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query->when(
-                            $data['value'],
-                            fn(Builder $query, $value): Builder => $query->where('tahun', $value),
-                        );
-                    }),
+                    ->default(YearContext::getActiveYear()),
 
                 SelectFilter::make('triwulan')
                     ->label('Triwulan')
@@ -263,22 +266,7 @@ class RealisasiAnggaranKasResource extends Resource
                         '2' => 'Triwulan II',
                         '3' => 'Triwulan III',
                         '4' => 'Triwulan IV',
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query->when(
-                            $data['value'],
-                            fn(Builder $query, $value): Builder => $query->where('triwulan', $value),
-                        );
-                    }),
-
-                SelectFilter::make('kategori')
-                    ->label('Kategori')
-                    ->options(function () {
-                        return RealisasiAnggaranKas::distinct()
-                            ->pluck('kategori', 'kategori')
-                            ->filter()
-                            ->toArray();
-                    }),
+                    ]),
 
                 SelectFilter::make('status')
                     ->label('Status')
@@ -292,6 +280,7 @@ class RealisasiAnggaranKasResource extends Resource
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
+
                     Action::make('complete')
                         ->label('Selesaikan')
                         ->icon('heroicon-o-check-circle')
@@ -322,12 +311,23 @@ class RealisasiAnggaranKasResource extends Resource
                         ->url(fn(RealisasiAnggaranKas $record): string => asset('storage/' . $record->bukti_dokumen))
                         ->openUrlInNewTab(),
 
+                    // Action::make('viewRencana')
+                    //     ->label('Lihat Rencana')
+                    //     ->icon('heroicon-o-eye')
+                    //     ->color('info')
+                    //     ->url(
+                    //         fn(RealisasiAnggaranKas $record): string =>
+                    //         route('filament.admin.resources.rencana-anggaran-kas.view', $record->rencana_anggaran_kas_id)
+                    //     )
+                    //     ->openUrlInNewTab(),
+
                     Tables\Actions\DeleteAction::make(),
                 ]),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+
                     Tables\Actions\BulkAction::make('bulkComplete')
                         ->label('Selesaikan Terpilih')
                         ->icon('heroicon-o-check-circle')
@@ -362,7 +362,11 @@ class RealisasiAnggaranKasResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->emptyStateHeading('Belum ada realisasi anggaran kas')
             ->emptyStateDescription('Mulai dengan membuat realisasi anggaran kas pertama Anda.')
-            ->emptyStateIcon('heroicon-o-clipboard-document-check');
+            ->emptyStateIcon('heroicon-o-clipboard-document-check')
+            ->modifyQueryUsing(function (Builder $query) {
+                // Default filter by active year
+                return $query->byYear();
+            });
     }
 
     public static function getRelations(): array
@@ -384,11 +388,18 @@ class RealisasiAnggaranKasResource extends Resource
 
     // public static function getNavigationBadge(): ?string
     // {
-    //     return static::getModel()::where('status', 'pending')->count();
+    //     return static::getModel()::byYear()->where('status', 'pending')->count();
     // }
 
     // public static function getNavigationBadgeColor(): ?string
     // {
-    //     return static::getModel()::where('status', 'pending')->count() > 0 ? 'warning' : 'primary';
+    //     $count = static::getModel()::byYear()->where('status', 'pending')->count();
+    //     return $count > 0 ? 'warning' : 'primary';
     // }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['rencanaAnggaranKas']);
+    }
 }

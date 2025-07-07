@@ -236,35 +236,35 @@ class ProgramResource extends BaseResource
                         return strlen($state) > 80 ? $state : null;
                     }),
 
-                TextColumn::make('indikator_list')
-                    ->label('Indikator')
-                    ->searchable(['indikator.nama_indikator', 'indikator2.nama_indikator'])
-                    ->sortable(false)
-                    ->wrap()
-                    ->limit(60)
-                    ->placeholder('Tidak ada indikator')
-                    ->getStateUsing(function (Program $record): string {
-                        $indikators = [];
+                // TextColumn::make('indikator_list')
+                //     ->label('Indikator')
+                //     ->searchable(['indikator.nama_indikator', 'indikator2.nama_indikator'])
+                //     ->sortable(false)
+                //     ->wrap()
+                //     ->limit(60)
+                //     ->placeholder('Tidak ada indikator')
+                //     ->getStateUsing(function (Program $record): string {
+                //         $indikators = [];
 
-                        if ($record->indikator) {
-                            $indikators[] = $record->indikator->nama_indikator;
-                        }
+                //         if ($record->indikator) {
+                //             $indikators[] = $record->indikator->nama_indikator;
+                //         }
 
-                        if ($record->indikator2) {
-                            $indikators[] = $record->indikator2->nama_indikator;
-                        }
+                //         if ($record->indikator2) {
+                //             $indikators[] = $record->indikator2->nama_indikator;
+                //         }
 
-                        return implode(', ', $indikators);
-                    })
-                    ->tooltip(function (TextColumn $column): ?string {
-                        $state = $column->getState();
-                        // Ensure $state is a string before using strlen()
-                        $stateString = is_string($state) ? $state : '';
-                        return strlen($stateString) > 60 ? $stateString : null;
-                    })
-                    ->badge()
-                    ->color('info')
-                    ->separator(', '),
+                //         return implode(', ', $indikators);
+                //     })
+                //     ->tooltip(function (TextColumn $column): ?string {
+                //         $state = $column->getState();
+                //         // Ensure $state is a string before using strlen()
+                //         $stateString = is_string($state) ? $state : '';
+                //         return strlen($stateString) > 60 ? $stateString : null;
+                //     })
+                //     ->badge()
+                //     ->color('info')
+                //     ->separator(', '),
 
                 TextColumn::make('total_anggaran')
                     ->label('Total Anggaran')

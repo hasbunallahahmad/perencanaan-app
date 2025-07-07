@@ -101,6 +101,9 @@ class SanitizeGlobalInput
             'auth/*',
             'sanctum/*',
             'api/*', // Skip API routes
+            'admin*',        // Tambahkan ini untuk Filament
+            'filament*',     // Tambahkan ini juga
+            'livewire*',     // Untuk Livewire requests
         ];
 
         foreach ($skipPatterns as $pattern) {
@@ -113,7 +116,10 @@ class SanitizeGlobalInput
         if ($request->ajax() && $request->hasHeader('X-CSRF-TOKEN')) {
             return true;
         }
-
+        // Skip untuk Livewire requests
+        if ($request->hasHeader('X-Livewire')) {
+            return true;
+        }
         return false;
     }
 
@@ -185,7 +191,6 @@ class SanitizeGlobalInput
         // Check for multiple suspicious characters in combination
         $suspiciousChars = ["'", '"', '`', '<', '>', '(', ')', ';', '|', '&', '$'];
         $foundChars = [];
-
         foreach ($suspiciousChars as $char) {
             if (str_contains($value, $char)) {
                 $foundChars[] = $char;
@@ -193,7 +198,7 @@ class SanitizeGlobalInput
         }
 
         // If more than 3 suspicious characters found, it might be malicious
-        return count($foundChars) > 3;
+        return count($foundChars) > 5;
     }
 
     /**
