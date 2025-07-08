@@ -48,7 +48,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Program::class, ProgramPolicy::class);
         Gate::policy(Kegiatan::class, KegiatanPolicy::class);
         Gate::policy(SubKegiatan::class, SubKegiatanPolicy::class);
+
+
         RencanaAnggaranKas::observe(RencanaAnggaranKasObserver::class);
+
         Seksi::observe(SeksiCacheObserver::class);
         // Disable lazy loading in development to catch N+1 queries
         // if (app()->environment('local')) {

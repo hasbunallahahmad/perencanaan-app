@@ -6,6 +6,7 @@ use App\Services\YearContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Carbon\Carbon;
 
 class RencanaAnggaranKas extends Model
 {
@@ -26,7 +27,7 @@ class RencanaAnggaranKas extends Model
     protected $casts = [
         'tahun' => 'integer',
         'jumlah_rencana' => 'decimal:2',
-        'tanggal_rencana' => 'date',
+        'tanggal_rencana' => 'nulllable|date',
     ];
 
     // Relationship
@@ -34,7 +35,18 @@ class RencanaAnggaranKas extends Model
     {
         return $this->hasMany(RealisasiAnggaranKas::class);
     }
-
+    public function setTanggalRencanaAttribute($value): void
+    {
+        if ($value instanceof Carbon) {
+            $this->attributes['tanggal_rencana'] = $value->format('Y-m-d');
+        } elseif (is_string($value)) {
+            $this->attributes['tanggal_rencana'] = Carbon::parse($value)->format('Y-m-d');
+        } elseif ($value === null) {
+            $this->attributes['tanggal_rencana'] = null;
+        } else {
+            $this->attributes['tanggal_rencana'] = Carbon::parse($value)->format('Y-m-d');
+        }
+    }
     // Accessor
     public function getJenisAnggaranTextAttribute(): string
     {
@@ -93,9 +105,9 @@ class RencanaAnggaranKas extends Model
             ->orderBy('created_at', 'desc')
             ->limit(1);
     }
-    public static function getLatestByYear($tahun = null, $approved = true)
+    public static function getLatestByYear(?int $tahun = null, bool $approved = true): ?self
     {
-        $tahun = $tahun ?? date('Y');
+        $tahun = $tahun ?? (int) date('Y');
 
         $query = self::byTahun($tahun);
 
@@ -105,18 +117,19 @@ class RencanaAnggaranKas extends Model
 
         return $query->orderBy('created_at', 'desc')->first();
     }
-    public static function getTotalByJenisAnggaran($tahun, $jenisAnggaran)
+    public static function getTotalByJenisAnggaran(int $tahun, string $jenisAnggaran): float
     {
-        return self::byTahun($tahun)
+        return (float) self::byTahun($tahun)
             ->byJenisAnggaran($jenisAnggaran)
             ->approved()
             ->sum('jumlah_rencana');
     }
     // Static method untuk mendapatkan data widget
-    public static function getWidgetData($tahun = null)
+    public static function getWidgetData(?int $tahun = null): array
     {
-        $tahun = $tahun ?? date('Y');
+        $tahun = $tahun ?? (int) date('Y');
         $latestRecord = self::getLatestByYear($tahun, true);
+
         if (!$latestRecord) {
             return [
                 'total_anggaran' => 0,
@@ -125,6 +138,7 @@ class RencanaAnggaranKas extends Model
                 'status' => null,
             ];
         }
+
         return [
             'total_anggaran' => $latestRecord->jumlah_rencana,
             'jenis_anggaran' => $latestRecord->jenis_anggaran_text,
@@ -132,9 +146,9 @@ class RencanaAnggaranKas extends Model
             'status' => $latestRecord->status_text,
         ];
     }
-    public static function getRiwayatAnggaran($tahun = null)
+    public static function getRiwayatAnggaran(?int $tahun = null): \Illuminate\Support\Collection
     {
-        $tahun = $tahun ?? date('Y');
+        $tahun = $tahun ?? (int) date('Y');
 
         return self::byTahun($tahun)
             ->approved()
@@ -152,9 +166,9 @@ class RencanaAnggaranKas extends Model
                 ];
             });
     }
-    public static function getRingkasanAnggaran($tahun = null)
+    public static function getRingkasanAnggaran(?int $tahun = null): array
     {
-        $tahun = $tahun ?? date('Y');
+        $tahun = $tahun ?? (int) date('Y');
 
         $data = [];
         $jenisAnggaranList = ['anggaran_murni', 'pergeseran', 'perubahan'];

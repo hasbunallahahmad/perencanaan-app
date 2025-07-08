@@ -5,6 +5,7 @@ namespace App\Observers;
 
 use App\Models\RencanaAnggaranKas;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class RencanaAnggaranKasObserver
 {
@@ -18,7 +19,7 @@ class RencanaAnggaranKasObserver
 
         // Set tanggal rencana jika belum ada
         if (!$rencanaAnggaranKas->tanggal_rencana) {
-            $rencanaAnggaranKas->tanggal_rencana = now()->toDateString();
+            $rencanaAnggaranKas->setAttribute('tanggal_rencana', Carbon::now()->format('Y-m-d'));
         }
 
         Log::info('Membuat rencana anggaran kas baru', [
@@ -39,9 +40,6 @@ class RencanaAnggaranKasObserver
             'tahun' => $rencanaAnggaranKas->tahun,
             'jenis_anggaran' => $rencanaAnggaranKas->jenis_anggaran,
         ]);
-
-        // Bisa menambahkan notifikasi atau event lain di sini
-        // event(new AnggaranKasCreated($rencanaAnggaranKas));
     }
 
     /**
@@ -49,7 +47,6 @@ class RencanaAnggaranKasObserver
      */
     public function updating(RencanaAnggaranKas $rencanaAnggaranKas): void
     {
-        // Jika status berubah menjadi approved, catat perubahan
         if ($rencanaAnggaranKas->isDirty('status') && $rencanaAnggaranKas->status === 'approved') {
             Log::info('Rencana anggaran kas disetujui', [
                 'id' => $rencanaAnggaranKas->id,
