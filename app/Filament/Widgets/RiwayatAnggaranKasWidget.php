@@ -67,10 +67,12 @@ class RiwayatAnggaranKasWidget extends BaseWidget
 
             $stats[] = Stat::make(
                 $data['jenis_anggaran'],
-                'Rp ' . number_format($jumlahRencana, 0, ',', '.') . ' (' . $persentase . '%)'
+                'Rp ' . number_format($jumlahRencana, 0, ',', '.')
             )
-                ->description('Realisasi: ' . $this->formatRupiah($realisasi))
-                ->descriptionIcon('heroicon-m-banknotes')
+                // ->description('Realisasi: ' . $this->formatRupiah($realisasi))
+                ->description('Realisasi: ' . $persentase . '%')
+                // ->descriptionIcon('heroicon-m-banknotes')
+                ->descriptionIcon('heroicon-m-chart-bar')
                 ->color($this->getColorByJenis($data['jenis_anggaran']))
                 ->chart($this->getChartData($data['jenis_anggaran'], $currentYear))
                 ->extraAttributes([
