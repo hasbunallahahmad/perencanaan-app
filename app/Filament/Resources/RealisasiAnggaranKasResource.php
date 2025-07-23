@@ -8,6 +8,7 @@ use App\Models\RencanaAnggaranKas;
 use App\Services\YearContext;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -15,6 +16,14 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Hidden;
 
 class RealisasiAnggaranKasResource extends Resource
 {
@@ -39,130 +48,286 @@ class RealisasiAnggaranKasResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Pilih Rencana Anggaran')
+                Section::make('Informasi Dasar')
                     ->schema([
-                        Forms\Components\Select::make('rencana_anggaran_kas_id')
-                            ->label('Rencana Anggaran Kas')
-                            ->options(function () {
-                                $activeYear = YearContext::getActiveYear();
-                                return RencanaAnggaranKas::where('status', 'approved')
-                                    ->where('tahun', $activeYear)
-                                    ->get()
-                                    ->mapWithKeys(function ($item) {
-                                        return [
-                                            $item->id => "{$item->tahun} - {$item->jenis_anggaran_text} (Rp " . number_format($item->jumlah_rencana, 0, ',', '.') . ")"
-                                        ];
-                                    });
-                            })
-                            ->required()
-                            ->searchable()
-                            ->live()
-                            ->afterStateUpdated(function (callable $set, $state) {
-                                if ($state) {
-                                    $rencana = RencanaAnggaranKas::find($state);
-                                    if ($rencana) {
-                                        $set('tahun', $rencana->tahun);
-                                        $set('deskripsi', $rencana->deskripsi);
-                                    }
-                                } else {
-                                    $set('tahun', null);
-                                    $set('deskripsi', null);
-                                }
-                            }),
-                    ]),
-
-                Forms\Components\Section::make('Detail Realisasi')
-                    ->schema([
-                        Forms\Components\Grid::make(2)
+                        Grid::make(2)
                             ->schema([
-                                Forms\Components\Hidden::make('tahun'),
-                                Forms\Components\Hidden::make('kategori'),
-
-                                Forms\Components\Select::make('triwulan')
-                                    ->label('Triwulan')
-                                    ->options([
-                                        '1' => 'Triwulan I',
-                                        '2' => 'Triwulan II',
-                                        '3' => 'Triwulan III',
-                                        '4' => 'Triwulan IV',
-                                    ])
+                                TextInput::make('tahun')
+                                    ->label('Tahun')
                                     ->required()
-                                    // ->default(function () {
-                                    //     // Set default triwulan berdasarkan bulan saat ini
-                                    //     $month = date('n');
-
-                                    //     if ($month >= 1 && $month <= 3) {
-                                    //         return 1;
-                                    //     } elseif ($month >= 4 && $month <= 6) {
-                                    //         return 2;
-                                    //     } elseif ($month >= 7 && $month <= 9) {
-                                    //         return 3;
-                                    //     } else {
-                                    //         return 4;
-                                    //     }
-                                    // })
-                                    ->native(false),
-
-                                Forms\Components\TextInput::make('jumlah_realisasi')
-                                    ->label('Jumlah Realisasi (Rp)')
                                     ->numeric()
+                                    ->default(YearContext::getActiveYear())
+                                    ->minValue(2020)
+                                    ->maxValue(2030),
+
+                                Select::make('rencana_anggaran_kas_id')
+                                    ->label('Pilih Rencana Anggaran')
+                                    ->options(function () {
+                                        $activeYear = YearContext::getActiveYear();
+                                        return RencanaAnggaranKas::where('status', 'approved')
+                                            ->where('tahun', $activeYear)
+                                            ->get()
+                                            ->mapWithKeys(function ($item) {
+                                                return [
+                                                    $item->id => "{$item->tahun} - {$item->jenis_anggaran_text} (Rp " . number_format($item->jumlah_rencana, 0, ',', '.') . ")"
+                                                ];
+                                            });
+                                    })
                                     ->required()
-                                    ->prefix('Rp')
-                                    ->placeholder('0')
+                                    ->searchable()
                                     ->reactive()
-                                    ->debounce(1000)
-                                    ->afterStateUpdated(function (callable $get, callable $set, $state) {
-                                        $rencanaId = $get('rencana_anggaran_kas_id');
-                                        if ($rencanaId && $state) {
-                                            $rencana = RencanaAnggaranKas::find($rencanaId);
-                                            if ($rencana && $rencana->jumlah_rencana > 0) {
-                                                $percentage = round(($state / $rencana->jumlah_rencana) * 100, 2);
-                                                $set('persentase_display', $percentage . '%');
+                                    ->afterStateUpdated(function (callable $set, callable $get, $state) {
+                                        if ($state) {
+                                            $rencana = RencanaAnggaranKas::find($state);
+                                            if ($rencana) {
+                                                $set('jenis_anggaran', $rencana->jenis_anggaran_text);
+                                                $set('pagu', $rencana->jumlah_rencana);
+
+                                                // Hanya set pagu, user akan input rencana per triwulan sendiri
+                                                // Tidak lagi auto-calculate rencana per triwulan
                                             }
                                         }
                                     }),
 
-                                Forms\Components\DatePicker::make('tanggal_realisasi')
-                                    ->label('Tanggal Realisasi')
-                                    ->required()
-                                    ->default(now()),
+                                TextInput::make('jenis_anggaran')
+                                    ->label('Jenis Anggaran')
+                                    ->disabled()
+                                    ->dehydrated(false),
+
+                                TextInput::make('pagu')
+                                    ->label('Pagu (Total)')
+                                    ->disabled()
+                                    ->dehydrated(false)
+                                    ->prefix('Rp')
+                                    ->live()
+                                    ->formatStateUsing(function ($state, $get) {
+                                        // Ambil dari rencana anggaran kas yang dipilih
+                                        $rencanaId = $get('rencana_anggaran_kas_id');
+                                        if ($rencanaId) {
+                                            $rencana = \App\Models\RencanaAnggaranKas::find($rencanaId);
+                                            if ($rencana && $rencana->jumlah_rencana) {
+                                                return number_format($rencana->jumlah_rencana, 0, ',', '.');
+                                            }
+                                        }
+                                        return $state ? number_format($state, 0, ',', '.') : '0';
+                                    }),
+
                             ]),
+                    ]),
 
-                        Forms\Components\Textarea::make('deskripsi')
-                            ->label('Deskripsi Realisasi')
+                Section::make('Rencana dan Realisasi Per Triwulan')
+                    ->schema([
+                        Grid::make(4)
+                            ->schema([
+                                // Triwulan 1
+                                Section::make('Triwulan 1')
+                                    ->schema([
+                                        TextInput::make('rencana_tw_1')
+                                            ->label('Rencana TW 1')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        TextInput::make('realisasi_tw_1')
+                                            ->label('Realisasi TW 1')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        DatePicker::make('tanggal_realisasi_tw_1')
+                                            ->label('Tanggal Realisasi')
+                                            ->default(now()),
+                                    ]),
+
+                                // Triwulan 2
+                                Section::make('Triwulan 2')
+                                    ->schema([
+                                        TextInput::make('rencana_tw_2')
+                                            ->label('Rencana TW 2')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        TextInput::make('realisasi_tw_2')
+                                            ->label('Realisasi TW 2')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        DatePicker::make('tanggal_realisasi_tw_2')
+                                            ->label('Tanggal Realisasi')
+                                            ->default(now()),
+                                    ]),
+
+                                // Triwulan 3
+                                Section::make('Triwulan 3')
+                                    ->schema([
+                                        TextInput::make('rencana_tw_3')
+                                            ->label('Rencana TW 3')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        TextInput::make('realisasi_tw_3')
+                                            ->label('Realisasi TW 3')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        DatePicker::make('tanggal_realisasi_tw_3')
+                                            ->label('Tanggal Realisasi')
+                                            ->default(now()),
+                                    ]),
+
+                                // Triwulan 4
+                                Section::make('Triwulan 4')
+                                    ->schema([
+                                        TextInput::make('rencana_tw_4')
+                                            ->label('Rencana TW 4')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        TextInput::make('realisasi_tw_4')
+                                            ->label('Realisasi TW 4')
+                                            ->numeric()
+                                            ->prefix('Rp')
+                                            ->default(0)
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set, $state) {
+                                                static::calculatePercentage($get, $set);
+                                            }),
+
+                                        DatePicker::make('tanggal_realisasi_tw_4')
+                                            ->label('Tanggal Realisasi')
+                                            ->default(now()),
+                                    ]),
+                            ]),
+                    ]),
+
+                Section::make('Realisasi Sampai Dengan (S/D)')
+                    ->schema([
+                        Grid::make(3)
+                            ->schema([
+                                TextInput::make('realisasi_sd_tw')
+                                    ->label('Realisasi S/D TW')
+                                    ->disabled()
+                                    ->dehydrated(false)
+                                    ->prefix('Rp')
+                                    ->numeric()
+                                    ->formatStateUsing(function ($state, $get) {
+                                        // Ambil dari rencana anggaran kas yang dipilih
+                                        $rencanaId = $get('rencana_anggaran_kas_id');
+                                        if ($rencanaId) {
+                                            $rencana = \App\Models\RencanaAnggaranKas::find($rencanaId);
+                                            if ($rencana && $rencana->jumlah_rencana) {
+                                                return number_format($rencana->jumlah_rencana, 0, ',', '.');
+                                            }
+                                        }
+                                        return $state ? number_format($state, 0, ',', '.') : '0';
+                                    }),
+
+                                TextInput::make('persentase_total')
+                                    ->label('Persentase Total')
+                                    ->disabled()
+                                    ->dehydrated(false)
+                                    ->suffix('%'),
+
+                                Select::make('status')
+                                    ->label('Status')
+                                    ->options([
+                                        'pending' => 'Pending',
+                                        'completed' => 'Selesai',
+                                        'cancelled' => 'Dibatalkan',
+                                    ])
+                                    ->default('completed')
+                                    ->required(),
+                            ]),
+                    ]),
+
+                Section::make('Catatan')
+                    ->schema([
+                        Textarea::make('deskripsi')
+                            ->label('Deskripsi')
                             ->rows(3)
-                            ->placeholder('Deskripsi detail mengenai realisasi anggaran'),
+                            ->columnSpanFull(),
 
-                        Forms\Components\Select::make('status')
-                            ->label('Status')
-                            ->options([
-                                'pending' => 'Pending',
-                                'completed' => 'Selesai',
-                                'cancelled' => 'Dibatalkan',
-                            ])
-                            ->default('completed')
-                            ->required(),
-
-                        // Forms\Components\FileUpload::make('bukti_dokumen')
-                        //     ->label('Bukti Dokumen Maksimal *5MB*')
-                        //     ->directory('bukti-realisasi')
-                        //     ->acceptedFileTypes(['application/pdf', 'image/*'])
-                        //     ->maxSize(5120), // 5MB
-
-                        Forms\Components\Textarea::make('catatan_realisasi')
+                        Textarea::make('catatan_realisasi')
                             ->label('Catatan Realisasi')
                             ->rows(3)
-                            ->placeholder('Catatan tambahan mengenai realisasi'),
-
-                        // Display field for percentage (read-only)
-                        Forms\Components\TextInput::make('persentase_display')
-                            ->label('Persentase Realisasi')
-                            ->disabled()
-                            ->dehydrated(false)
-                            ->suffix('%')
-                            ->placeholder('0%'),
+                            ->columnSpanFull(),
                     ]),
             ]);
+    }
+
+    protected static function calculatePercentage(callable $get, callable $set): void
+    {
+        $totalRealisasi = collect([
+            $get('realisasi_tw_1') ?? 0,
+            $get('realisasi_tw_2') ?? 0,
+            $get('realisasi_tw_3') ?? 0,
+            $get('realisasi_tw_4') ?? 0,
+        ])->sum();
+
+        $totalRencana = collect([
+            $get('rencana_tw_1') ?? 0,
+            $get('rencana_tw_2') ?? 0,
+            $get('rencana_tw_3') ?? 0,
+            $get('rencana_tw_4') ?? 0,
+        ])->sum();
+
+        $set('realisasi_sd_tw', $totalRealisasi);
+
+        // Hitung persentase berdasarkan total rencana, bukan pagu
+        if ($totalRencana > 0) {
+            $persentase = round(($totalRealisasi / $totalRencana) * 100, 2);
+            $set('persentase_total', $persentase);
+        } else {
+            $set('persentase_total', 0);
+        }
+        $pagu = $get('pagu') ?? 0;
+
+        if ($totalRencana > $pagu && $pagu > 0) {
+            // Show warning atau error
+            // Contoh menggunakan notification:
+            \Filament\Notifications\Notification::make()
+                ->title('Peringatan!')
+                ->body('Total rencana (Rp ' . number_format($totalRencana, 0, ',', '.') . ') melebihi pagu (Rp ' . number_format($pagu, 0, ',', '.') . ')')
+                ->warning()
+                ->send();
+        }
     }
 
     public static function table(Table $table): Table
@@ -172,45 +337,132 @@ class RealisasiAnggaranKasResource extends Resource
                 Tables\Columns\TextColumn::make('tahun')
                     ->label('Tahun')
                     ->sortable()
-                    ->searchable(),
-
-                TextColumn::make('triwulan')
-                    ->label('Triwulan')
-                    ->badge()
-                    ->formatStateUsing(fn(string $state): string => "TW $state")
-                    ->colors([
-                        'primary' => '1',
-                        'success' => '2',
-                        'warning' => '3',
-                        'danger' => '4',
-                    ])
-                    ->sortable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('rencanaAnggaranKas.jenis_anggaran_text')
-                    ->label('Rencana (Rp)')
-                    ->money('IDR')
+                    ->label('Jenis Anggaran')
                     ->sortable()
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('rencanaAnggaranKas.jumlah_rencana')
-                    ->label('Rencana (Rp)')
+                    ->label('Pagu')
                     ->money('IDR')
                     ->sortable()
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('jumlah_realisasi')
-                    ->label('Realisasi (Rp)')
+                // Tampilkan kolom rencana per triwulan
+                Tables\Columns\TextColumn::make('rencana_tw_1')
+                    ->label('TW 1')
                     ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('rencana_tw_2')
+                    ->label('TW 2')
+                    ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('rencana_tw_3')
+                    ->label('TW 3')
+                    ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('rencana_tw_4')
+                    ->label(' TW 4')
+                    ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('total_rencana')
+                    ->label('Rencana')
+                    ->money('IDR')
+                    ->getStateUsing(function ($record) {
+                        return ($record->rencana_tw_1 ?? 0) +
+                            ($record->rencana_tw_2 ?? 0) +
+                            ($record->rencana_tw_3 ?? 0) +
+                            ($record->rencana_tw_4 ?? 0);
+                    })
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('realisasi_tw_1')
+                    ->label(' TW 1')
+                    ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('realisasi_tw_2')
+                    ->label(' TW 2')
+                    ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('realisasi_tw_3')
+                    ->label(' TW 3')
+                    ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('realisasi_tw_4')
+                    ->label(' TW 4')
+                    ->money('IDR')
+                    ->sortable()
+                    ->toggleable(),
+
+
+
+                Tables\Columns\TextColumn::make('total_realisasi')
+                    ->label('Realisasi')
+                    ->money('IDR')
+                    ->getStateUsing(function ($record) {
+                        return ($record->realisasi_tw_1 ?? 0) +
+                            ($record->realisasi_tw_2 ?? 0) +
+                            ($record->realisasi_tw_3 ?? 0) +
+                            ($record->realisasi_tw_4 ?? 0);
+                    })
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('persentase_realisasi')
+                Tables\Columns\TextColumn::make('persentase_total')
                     ->label('Persentase')
-                    ->formatStateUsing(fn($record): string => $record->persentase_realisasi . '%')
+                    ->formatStateUsing(function ($record) {
+                        $totalRealisasi = ($record->realisasi_tw_1 ?? 0) +
+                            ($record->realisasi_tw_2 ?? 0) +
+                            ($record->realisasi_tw_3 ?? 0) +
+                            ($record->realisasi_tw_4 ?? 0);
+
+                        $totalRencana = ($record->rencana_tw_1 ?? 0) +
+                            ($record->rencana_tw_2 ?? 0) +
+                            ($record->rencana_tw_3 ?? 0) +
+                            ($record->rencana_tw_4 ?? 0);
+
+                        if ($totalRencana > 0) {
+                            $persentase = round(($totalRealisasi / $totalRencana) * 100, 2);
+                            return $persentase . '%';
+                        }
+                        return '0%';
+                    })
                     ->badge()
-                    ->color(fn($record): string => match (true) {
-                        $record->persentase_realisasi >= 100 => 'success',
-                        $record->persentase_realisasi >= 75 => 'warning',
-                        default => 'danger',
+                    ->color(function ($record) {
+                        $totalRealisasi = ($record->realisasi_tw_1 ?? 0) +
+                            ($record->realisasi_tw_2 ?? 0) +
+                            ($record->realisasi_tw_3 ?? 0) +
+                            ($record->realisasi_tw_4 ?? 0);
+
+                        $totalRencana = ($record->rencana_tw_1 ?? 0) +
+                            ($record->rencana_tw_2 ?? 0) +
+                            ($record->rencana_tw_3 ?? 0) +
+                            ($record->rencana_tw_4 ?? 0);
+
+                        if ($totalRencana > 0) {
+                            $persentase = round(($totalRealisasi / $totalRencana) * 100, 2);
+                            return match (true) {
+                                $persentase >= 100 => 'success',
+                                $persentase >= 75 => 'warning',
+                                default => 'danger',
+                            };
+                        }
+                        return 'danger';
                     }),
 
                 Tables\Columns\TextColumn::make('status')
@@ -227,18 +479,6 @@ class RealisasiAnggaranKasResource extends Resource
                         'cancelled' => 'Dibatalkan',
                         default => $state,
                     }),
-
-                Tables\Columns\TextColumn::make('tanggal_realisasi')
-                    ->label('Tanggal Realisasi')
-                    ->date()
-                    ->sortable(),
-
-                // Tables\Columns\IconColumn::make('bukti_dokumen')
-                //     ->label('Bukti')
-                //     ->boolean()
-                //     ->trueIcon('heroicon-o-document-check')
-                //     ->falseIcon('heroicon-o-document-minus')
-                //     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Dibuat')
@@ -259,15 +499,6 @@ class RealisasiAnggaranKasResource extends Resource
                     })
                     ->default(YearContext::getActiveYear()),
 
-                SelectFilter::make('triwulan')
-                    ->label('Triwulan')
-                    ->options([
-                        '1' => 'Triwulan I',
-                        '2' => 'Triwulan II',
-                        '3' => 'Triwulan III',
-                        '4' => 'Triwulan IV',
-                    ]),
-
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
@@ -277,86 +508,84 @@ class RealisasiAnggaranKasResource extends Resource
                     ]),
             ])
             ->actions([
+                // Tambahkan custom action ini
+                Action::make('updateRealisasi')
+                    ->label('Update Realisasi')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->form([
+                        Grid::make(2)
+                            ->schema([
+                                TextInput::make('realisasi_tw_1')
+                                    ->label('Realisasi TW 1')
+                                    ->numeric()
+                                    ->prefix('Rp'),
+
+                                DatePicker::make('tanggal_realisasi_tw_1')
+                                    ->label('Tanggal Realisasi TW 1'),
+
+                                TextInput::make('realisasi_tw_2')
+                                    ->label('Realisasi TW 2')
+                                    ->numeric()
+                                    ->prefix('Rp'),
+
+                                DatePicker::make('tanggal_realisasi_tw_2')
+                                    ->label('Tanggal Realisasi TW 2'),
+
+                                TextInput::make('realisasi_tw_3')
+                                    ->label('Realisasi TW 3')
+                                    ->numeric()
+                                    ->prefix('Rp'),
+
+                                DatePicker::make('tanggal_realisasi_tw_3')
+                                    ->label('Tanggal Realisasi TW 3'),
+
+                                TextInput::make('realisasi_tw_4')
+                                    ->label('Realisasi TW 4')
+                                    ->numeric()
+                                    ->prefix('Rp'),
+
+                                DatePicker::make('tanggal_realisasi_tw_4')
+                                    ->label('Tanggal Realisasi TW 4'),
+
+                                Textarea::make('catatan_realisasi')
+                                    ->label('Catatan Realisasi')
+                                    ->columnSpanFull(),
+                            ])
+                    ])
+                    ->fillForm(fn($record) => $record->toArray())
+                    ->action(function ($record, array $data) {
+                        $record->update($data);
+
+                        // Trigger recalculation (optional)
+                        $totalRealisasi = collect([
+                            $data['realisasi_tw_1'] ?? 0,
+                            $data['realisasi_tw_2'] ?? 0,
+                            $data['realisasi_tw_3'] ?? 0,
+                            $data['realisasi_tw_4'] ?? 0,
+                        ])->sum();
+
+                        $record->update(['realisasi_sd_tw' => $totalRealisasi]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Berhasil!')
+                            ->body('Realisasi berhasil diupdate')
+                            ->success()
+                            ->send();
+                    })
+                    ->modalHeading('Update Realisasi')
+                    ->modalWidth('4xl'),
+
+                // ActionGroup yang sudah ada
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
-
-                    Action::make('complete')
-                        ->label('Selesaikan')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->visible(fn(RealisasiAnggaranKas $record): bool => $record->status === 'pending')
-                        ->action(fn(RealisasiAnggaranKas $record) => $record->update(['status' => 'completed']))
-                        ->requiresConfirmation()
-                        ->modalHeading('Selesaikan Realisasi?')
-                        ->modalDescription('Apakah Anda yakin ingin menandai realisasi ini sebagai selesai?')
-                        ->modalSubmitActionLabel('Ya, Selesaikan'),
-
-                    Action::make('cancel')
-                        ->label('Batalkan')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->visible(fn(RealisasiAnggaranKas $record): bool => $record->status === 'pending')
-                        ->action(fn(RealisasiAnggaranKas $record) => $record->update(['status' => 'cancelled']))
-                        ->requiresConfirmation()
-                        ->modalHeading('Batalkan Realisasi?')
-                        ->modalDescription('Apakah Anda yakin ingin membatalkan realisasi ini?')
-                        ->modalSubmitActionLabel('Ya, Batalkan'),
-
-                    Action::make('downloadBukti')
-                        ->label('Unduh Bukti')
-                        ->icon('heroicon-o-arrow-down-tray')
-                        ->color('info')
-                        ->visible(fn(RealisasiAnggaranKas $record): bool => !empty($record->bukti_dokumen))
-                        ->url(fn(RealisasiAnggaranKas $record): string => asset('storage/' . $record->bukti_dokumen))
-                        ->openUrlInNewTab(),
-
-                    // Action::make('viewRencana')
-                    //     ->label('Lihat Rencana')
-                    //     ->icon('heroicon-o-eye')
-                    //     ->color('info')
-                    //     ->url(
-                    //         fn(RealisasiAnggaranKas $record): string =>
-                    //         route('filament.admin.resources.rencana-anggaran-kas.view', $record->rencana_anggaran_kas_id)
-                    //     )
-                    //     ->openUrlInNewTab(),
-
                     Tables\Actions\DeleteAction::make(),
                 ]),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
-
-                    Tables\Actions\BulkAction::make('bulkComplete')
-                        ->label('Selesaikan Terpilih')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->action(function ($records) {
-                            $records->each(function ($record) {
-                                if ($record->status === 'pending') {
-                                    $record->update(['status' => 'completed']);
-                                }
-                            });
-                        })
-                        ->requiresConfirmation()
-                        ->modalHeading('Selesaikan Realisasi Terpilih?')
-                        ->modalDescription('Apakah Anda yakin ingin menandai semua realisasi terpilih sebagai selesai?'),
-
-                    Tables\Actions\BulkAction::make('bulkCancel')
-                        ->label('Batalkan Terpilih')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->action(function ($records) {
-                            $records->each(function ($record) {
-                                if ($record->status === 'pending') {
-                                    $record->update(['status' => 'cancelled']);
-                                }
-                            });
-                        })
-                        ->requiresConfirmation()
-                        ->modalHeading('Batalkan Realisasi Terpilih?')
-                        ->modalDescription('Apakah Anda yakin ingin membatalkan semua realisasi terpilih?'),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')
@@ -364,7 +593,6 @@ class RealisasiAnggaranKasResource extends Resource
             ->emptyStateDescription('Mulai dengan membuat realisasi anggaran kas pertama Anda.')
             ->emptyStateIcon('heroicon-o-clipboard-document-check')
             ->modifyQueryUsing(function (Builder $query) {
-                // Default filter by active year
                 return $query->byYear();
             });
     }
@@ -385,17 +613,6 @@ class RealisasiAnggaranKasResource extends Resource
             'edit' => Pages\EditRealisasiAnggaranKas::route('/{record}/edit'),
         ];
     }
-
-    // public static function getNavigationBadge(): ?string
-    // {
-    //     return static::getModel()::byYear()->where('status', 'pending')->count();
-    // }
-
-    // public static function getNavigationBadgeColor(): ?string
-    // {
-    //     $count = static::getModel()::byYear()->where('status', 'pending')->count();
-    //     return $count > 0 ? 'warning' : 'primary';
-    // }
 
     public static function getEloquentQuery(): Builder
     {

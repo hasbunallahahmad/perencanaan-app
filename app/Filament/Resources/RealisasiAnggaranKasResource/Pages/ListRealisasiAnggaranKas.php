@@ -18,6 +18,14 @@ class ListRealisasiAnggaranKas extends ListRecords
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->tooltip('Tambah realisasi anggaran kas baru'),
+
+            // Actions\Action::make('back')
+            //     ->label('Kembali')
+            //     ->icon('heroicon-o-arrow-left')
+            //     ->color('gray')
+            //     ->url($this->getResource()::getUrl('index')),
+
+            // Actions\EditAction::make(),
         ];
     }
 }

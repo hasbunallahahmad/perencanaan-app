@@ -11,6 +11,37 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Validation\Rule;
 
+/**
+ * @property int $id_program
+ * @property string $kode_program
+ * @property string $nama_program
+ * @property int $organisasi_id
+ * @property int|null $indikator_id
+ * @property int|null $indikator_id_2
+ * @property int $tahun
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
+ * 
+ * // Computed Properties
+ * @property int $total_anggaran
+ * @property int $total_realisasi  
+ * @property float $persentase_serapan
+ * @property string $formatted_anggaran
+ * @property string $formatted_realisasi
+ * @property int $total_kegiatan
+ * @property int $total_sub_kegiatan
+ * @property string $kategori
+ * @property string $badge_color
+ * @property string $indikator_list
+ * 
+ * // Relations
+ * @property-read \App\Models\Organisasi $organisasi
+ * @property-read \App\Models\MasterIndikator|null $indikator
+ * @property-read \App\Models\MasterIndikator|null $indikator2
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Kegiatan[] $kegiatan
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SubKegiatan[] $subKegiatan
+ */
 class Program extends Model
 {
     use HasFactory, SoftDeletes;

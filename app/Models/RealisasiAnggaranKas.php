@@ -1,12 +1,12 @@
 <?php
-// app/Models/RealisasiAnggaranKas.php
 
 namespace App\Models;
 
-use App\Services\YearContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
+use App\Services\YearContext;
 
 class RealisasiAnggaranKas extends Model
 {
@@ -20,306 +20,336 @@ class RealisasiAnggaranKas extends Model
         'triwulan',
         'deskripsi',
         'jumlah_realisasi',
+        'rencana_tw_1',
+        'rencana_tw_2',
+        'rencana_tw_3',
+        'rencana_tw_4',
+        'realisasi_tw_1',
+        'realisasi_tw_2',
+        'realisasi_tw_3',
+        'realisasi_tw_4',
+        'tanggal_realisasi_tw_1',
+        'tanggal_realisasi_tw_2',
+        'tanggal_realisasi_tw_3',
+        'tanggal_realisasi_tw_4',
+        'realisasi_sd_tw',
+        'persentase_total',
         'persentase_realisasi',
         'tanggal_realisasi',
         'status',
         'catatan_realisasi',
-        'bukti_dokumen',
+        'bukti_dokumen'
     ];
 
     protected $casts = [
         'tahun' => 'integer',
-        'triwulan' => 'integer',
         'jumlah_realisasi' => 'decimal:2',
+        'rencana_tw_1' => 'decimal:2',
+        'rencana_tw_2' => 'decimal:2',
+        'rencana_tw_3' => 'decimal:2',
+        'rencana_tw_4' => 'decimal:2',
+        'realisasi_tw_1' => 'decimal:2',
+        'realisasi_tw_2' => 'decimal:2',
+        'realisasi_tw_3' => 'decimal:2',
+        'realisasi_tw_4' => 'decimal:2',
+        'realisasi_sd_tw' => 'decimal:2',
+        'persentase_total' => 'decimal:2',
         'persentase_realisasi' => 'decimal:2',
+        'tanggal_realisasi_tw_1' => 'date',
+        'tanggal_realisasi_tw_2' => 'date',
+        'tanggal_realisasi_tw_3' => 'date',
+        'tanggal_realisasi_tw_4' => 'date',
         'tanggal_realisasi' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
-    protected $attributes = [
-        'tahun' => null,
-        'triwulan' => 1,
-        'status' => 'completed',
+
+    // Add appends to make accessors available when converting to array/JSON
+    protected $appends = [
+        'total_rencana',
+        'total_realisasi',
+        'persentase_realisasi_calculated',
+        'persentase_realisasi_terhadap_pagu',
+        'status_color',
+        'status_text',
+        'triwulan_text'
     ];
-    // Relationship
+
+    /**
+     * Relationship to RencanaAnggaranKas
+     */
     public function rencanaAnggaranKas(): BelongsTo
     {
-        return $this->belongsTo(RencanaAnggaranKas::class);
+        return $this->belongsTo(RencanaAnggaranKas::class, 'rencana_anggaran_kas_id');
     }
 
-    // Accessor
-    public function getTriwulanTextAttribute(): string
+    /**
+     * Scope untuk filter berdasarkan tahun
+     */
+    public function scopeByYear(Builder $query, ?int $year = null): Builder
     {
-        $triwulanMap = [
-            '1' => 'Triwulan I',
-            '2' => 'Triwulan II',
-            '3' => 'Triwulan III',
-            '4' => 'Triwulan IV',
-        ];
-
-        return $triwulanMap[$this->triwulan] ?? 'Unknown';
+        $year = $year ?? YearContext::getActiveYear();
+        return $query->where('tahun', $year);
     }
 
-    public function getStatusTextAttribute(): string
+    /**
+     * Scope untuk filter berdasarkan status
+     */
+    public function scopeByStatus(Builder $query, string $status): Builder
     {
-        $statusMap = [
-            'pending' => 'Pending',
-            'completed' => 'Selesai',
-            'cancelled' => 'Dibatalkan',
-        ];
-
-        return $statusMap[$this->status] ?? 'Unknown';
+        return $query->where('status', $status);
     }
 
-    public function getJumlahFormattedAttribute(): string
-    {
-        return 'Rp ' . number_format($this->jumlah_realisasi, 0, ',', '.');
-    }
-
-    // public function getPersentaseRealisasiAttribute(): float
-    // {
-    //     if (!$this->rencanaAnggaranKas || $this->rencanaAnggaranKas->jumlah_rencana == 0) {
-    //         return 0;
-    //     }
-
-    //     return round(($this->jumlah_realisasi / $this->rencanaAnggaranKas->jumlah_rencana) * 100, 2);
-    // }
-
-    // Scope
-    public function scopeByTahun($query, $tahun)
-    {
-        return $query->where('tahun', $tahun);
-    }
-
-    public function scopeByTriwulan($query, $triwulan)
+    /**
+     * Scope untuk filter berdasarkan triwulan
+     */
+    public function scopeByTriwulan(Builder $query, string $triwulan): Builder
     {
         return $query->where('triwulan', $triwulan);
     }
 
-    public function scopeCompleted($query)
+    /**
+     * Accessor untuk mendapatkan total rencana
+     */
+    public function getTotalRencanaAttribute(): float
     {
-        return $query->where('status', 'completed');
+        return ($this->rencana_tw_1 ?? 0) +
+            ($this->rencana_tw_2 ?? 0) +
+            ($this->rencana_tw_3 ?? 0) +
+            ($this->rencana_tw_4 ?? 0);
     }
 
-    public function scopeByYear($query, ?int $year = null)
+    /**
+     * Accessor untuk mendapatkan total realisasi
+     */
+    public function getTotalRealisasiAttribute(): float
     {
-        $activeYear = $year ?? YearContext::getActiveYear();
-        return $query->where('tahun', $activeYear);
+        return ($this->realisasi_tw_1 ?? 0) +
+            ($this->realisasi_tw_2 ?? 0) +
+            ($this->realisasi_tw_3 ?? 0) +
+            ($this->realisasi_tw_4 ?? 0);
     }
 
-    public function scopeByQuarter($query, int $quarter)
+    /**
+     * Accessor untuk mendapatkan persentase realisasi berdasarkan total rencana
+     */
+    public function getPersentaseRealisasiCalculatedAttribute(): float
     {
-        return $query->where('triwulan', $quarter);
-    }
+        $totalRealisasi = $this->getTotalRealisasiAttribute();
+        $totalRencana = $this->getTotalRencanaAttribute();
 
-    public function scopeLatestByYear($query, ?int $year = null)
-    {
-        $activeYear = $year ?? YearContext::getActiveYear();
-        return $query->where('tahun', $activeYear)
-            ->orderBy('created_at', 'desc')
-            ->limit(1);
-    }
-
-    public function scopeLatestCompletedByYear($query, ?int $year = null)
-    {
-        $activeYear = $year ?? YearContext::getActiveYear();
-        return $query->where('tahun', $activeYear)
-            ->where('status', 'completed')
-            ->orderBy('created_at', 'desc')
-            ->limit(1);
-    }
-
-    // Static method untuk mendapatkan data berdasarkan tahun
-    public static function getLatestByYear($tahun = null, $completed = true)
-    {
-        $tahun = $tahun ?? date('Y');
-
-        $query = self::byTahun($tahun);
-
-        if ($completed) {
-            $query = $query->completed();
+        if ($totalRencana > 0) {
+            return round(($totalRealisasi / $totalRencana) * 100, 2);
         }
 
-        return $query->orderBy('created_at', 'desc')->first();
+        return 0;
     }
 
-    // Static method untuk mendapatkan total per triwulan
-    public static function getTotalByTriwulan($tahun, $triwulan)
+    /**
+     * Accessor untuk mendapatkan persentase realisasi terhadap pagu
+     */
+    public function getPersentaseRealisasiTerhadapPaguAttribute(): float
     {
-        return self::byTahun($tahun)
-            ->byTriwulan($triwulan)
-            ->completed()
-            ->sum('jumlah_realisasi');
-    }
+        $totalRealisasi = $this->getTotalRealisasiAttribute();
+        $pagu = $this->rencanaAnggaranKas->jumlah_rencana ?? 0;
 
-    // Static method untuk mendapatkan data widget (data realisasi per triwulan)
-    public static function getWidgetData($tahun = null)
-    {
-        $tahun = $tahun ?? date('Y');
-
-        $data = [];
-        for ($i = 1; $i <= 4; $i++) {
-            $total = self::getTotalByTriwulan($tahun, $i);
-            $data["triwulan_$i"] = $total;
+        if ($pagu > 0) {
+            return round(($totalRealisasi / $pagu) * 100, 2);
         }
 
-        $latestRecord = self::getLatestByYear($tahun, true);
-        $data['latest'] = $latestRecord ? [
-            'triwulan' => $latestRecord->triwulan,
-            'jumlah_realisasi' => $latestRecord->jumlah_realisasi,
-            'tanggal_update' => $latestRecord->created_at,
-            'status' => $latestRecord->status_text,
-        ] : null;
-
-        return $data;
+        return 0;
     }
 
-    // Static method untuk mendapatkan perbandingan data rencana vs realisasi
-    public static function getComparisonData($tahun = null)
+    /**
+     * Accessor untuk mendapatkan status badge color
+     */
+    public function getStatusColorAttribute(): string
     {
-        $tahun = $tahun ?? date('Y');
-
-        // Ambil data rencana anggaran (tahunan)
-        $rencanaRecord = RencanaAnggaranKas::getLatestByYear($tahun, true);
-        $totalRencana = $rencanaRecord ? $rencanaRecord->jumlah_rencana : 0;
-
-        // Bagi rata rencana per triwulan untuk perbandingan
-        $rencanaPerTriwulan = $totalRencana / 4;
-
-        $comparison = [];
-        for ($i = 1; $i <= 4; $i++) {
-            $realisasi = self::getTotalByTriwulan($tahun, $i);
-            $selisih = $realisasi - $rencanaPerTriwulan;
-            $persentase = $rencanaPerTriwulan > 0 ? round(($realisasi / $rencanaPerTriwulan) * 100, 2) : 0;
-
-            $comparison["triwulan_$i"] = [
-                'rencana' => $rencanaPerTriwulan,
-                'realisasi' => $realisasi,
-                'selisih' => $selisih,
-                'persentase' => $persentase,
-                'rencana_formatted' => 'Rp ' . number_format($rencanaPerTriwulan, 0, ',', '.'),
-                'realisasi_formatted' => 'Rp ' . number_format($realisasi, 0, ',', '.'),
-            ];
-        }
-
-        // Tambahkan data total
-        $totalRealisasi = array_sum(array_column($comparison, 'realisasi'));
-        $comparison['total'] = [
-            'rencana' => $totalRencana,
-            'realisasi' => $totalRealisasi,
-            'selisih' => $totalRealisasi - $totalRencana,
-            'persentase' => $totalRencana > 0 ? round(($totalRealisasi / $totalRencana) * 100, 2) : 0,
-            'rencana_formatted' => 'Rp ' . number_format($totalRencana, 0, ',', '.'),
-            'realisasi_formatted' => 'Rp ' . number_format($totalRealisasi, 0, ',', '.'),
-        ];
-
-        return $comparison;
+        return match ($this->attributes['status'] ?? '') {
+            'pending' => 'secondary',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+            default => 'secondary',
+        };
     }
 
-    // Static method untuk mendapatkan riwayat realisasi per triwulan
-    public static function getRiwayatRealisasi($tahun = null)
+    /**
+     * Accessor untuk mendapatkan status text
+     */
+    public function getStatusTextAttribute(): string
     {
-        $tahun = $tahun ?? date('Y');
-
-        return self::byTahun($tahun)
-            ->completed()
-            ->orderBy('triwulan', 'asc')
-            ->orderBy('created_at', 'asc')
-            ->get()
-            ->map(function ($record) {
-                return [
-                    'id' => $record->id,
-                    'triwulan' => $record->triwulan_text,
-                    'jumlah_realisasi' => $record->jumlah_realisasi,
-                    'jumlah_formatted' => $record->jumlah_formatted,
-                    'tanggal_realisasi' => $record->tanggal_realisasi,
-                    'created_at' => $record->created_at,
-                    'deskripsi' => $record->deskripsi,
-                    'persentase_realisasi' => $record->persentase_realisasi,
-                ];
-            });
+        return match ($this->attributes['status'] ?? '') {
+            'pending' => 'Pending',
+            'completed' => 'Selesai',
+            'cancelled' => 'Dibatalkan',
+            default => $this->attributes['status'] ?? '',
+        };
     }
-    public function getPersentaseRealisasiAttribute($value): float
+
+    /**
+     * Accessor untuk mendapatkan triwulan text
+     */
+    public function getTriwulanTextAttribute(): string
     {
-        // Jika kolom database kosong, hitung dari relasi
-        if ($value === null && $this->rencanaAnggaranKas) {
-            if ($this->rencanaAnggaranKas->jumlah_rencana > 0) {
-                return round(($this->jumlah_realisasi / $this->rencanaAnggaranKas->jumlah_rencana) * 100, 2);
-            }
-            return 0;
-        }
-
-        return (float) $value;
+        return match ($this->attributes['triwulan'] ?? '') {
+            '1' => 'Triwulan 1',
+            '2' => 'Triwulan 2',
+            '3' => 'Triwulan 3',
+            '4' => 'Triwulan 4',
+            default => $this->attributes['triwulan'] ?? '',
+        };
     }
-    // Static method untuk mendapatkan ringkasan realisasi per triwulan
-    public static function getRingkasanRealisasi($tahun = null)
-    {
-        $tahun = $tahun ?? date('Y');
 
-        $data = [];
-        for ($i = 1; $i <= 4; $i++) {
-            $total = self::getTotalByTriwulan($tahun, $i);
-            $data["triwulan_$i"] = [
-                'total' => $total,
-                'formatted' => 'Rp ' . number_format($total, 0, ',', '.'),
-            ];
-        }
-
-        $latestRecord = self::getLatestByYear($tahun, true);
-        $data['latest'] = $latestRecord ? [
-            'triwulan' => $latestRecord->triwulan,
-            'jumlah_realisasi' => $latestRecord->jumlah_realisasi,
-            'tanggal_update' => $latestRecord->created_at,
-        ] : null;
-
-        return $data;
-    }
+    /**
+     * Boot method untuk auto-calculate values
+     */
     protected static function boot()
     {
         parent::boot();
-        static::creating(function ($model) {
-            // Set tahun default jika belum diisi
-            if (!$model->tahun) {
-                $model->tahun = YearContext::getActiveYear() ?? date('Y');
-            }
 
-            // Set triwulan default jika belum diisi
-            if (!$model->triwulan) {
-                $model->triwulan = self::getCurrentTriwulan();
-            }
-
-            // Set status default jika belum diisi
-            if (!$model->status) {
-                $model->status = 'pending';
-            }
-        });
-        // Observer untuk mengisi persentase_realisasi otomatis
         static::saving(function ($model) {
-            if ($model->rencana_anggaran_kas_id && $model->jumlah_realisasi) {
-                $rencana = $model->rencanaAnggaranKas ??
-                    \App\Models\RencanaAnggaranKas::find($model->rencana_anggaran_kas_id);
+            // Auto-calculate total realisasi
+            $model->realisasi_sd_tw = ($model->realisasi_tw_1 ?? 0) +
+                ($model->realisasi_tw_2 ?? 0) +
+                ($model->realisasi_tw_3 ?? 0) +
+                ($model->realisasi_tw_4 ?? 0);
 
-                if ($rencana && $rencana->jumlah_rencana > 0) {
-                    $model->persentase_realisasi = round(
-                        ($model->jumlah_realisasi / $rencana->jumlah_rencana) * 100,
-                        2
-                    );
-                } else {
-                    $model->persentase_realisasi = 0;
-                }
+            // Calculate total rencana
+            $totalRencana = ($model->rencana_tw_1 ?? 0) +
+                ($model->rencana_tw_2 ?? 0) +
+                ($model->rencana_tw_3 ?? 0) +
+                ($model->rencana_tw_4 ?? 0);
+
+            // Auto-calculate persentase berdasarkan total rencana
+            if ($totalRencana > 0) {
+                $model->persentase_total = round(($model->realisasi_sd_tw / $totalRencana) * 100, 2);
+                $model->persentase_realisasi = $model->persentase_total;
+            } else {
+                $model->persentase_total = 0;
+                $model->persentase_realisasi = 0;
+            }
+
+            // Set tahun from YearContext if not provided
+            if (empty($model->tahun)) {
+                $model->tahun = YearContext::getActiveYear();
             }
         });
     }
-    public static function getCurrentTriwulan(): int
-    {
-        $month = date('n');
 
-        if ($month >= 1 && $month <= 3) {
-            return 1;
-        } elseif ($month >= 4 && $month <= 6) {
-            return 2;
-        } elseif ($month >= 7 && $month <= 9) {
-            return 3;
-        } else {
-            return 4;
+    /**
+     * Get formatted currency value
+     */
+    public function getFormattedRealisasi(string $field): string
+    {
+        $value = $this->{$field} ?? 0;
+        return 'Rp ' . number_format($value, 0, ',', '.');
+    }
+
+    /**
+     * Get formatted currency value for rencana
+     */
+    public function getFormattedRencana(string $field): string
+    {
+        $value = $this->{$field} ?? 0;
+        return 'Rp ' . number_format($value, 0, ',', '.');
+    }
+
+    /**
+     * Check if realization is complete for a quarter
+     */
+    public function isQuarterComplete(int $quarter): bool
+    {
+        $field = "realisasi_tw_{$quarter}";
+        return !empty($this->{$field}) && $this->{$field} > 0;
+    }
+
+    /**
+     * Check if plan is set for a quarter
+     */
+    public function isQuarterPlanSet(int $quarter): bool
+    {
+        $field = "rencana_tw_{$quarter}";
+        return !empty($this->{$field}) && $this->{$field} > 0;
+    }
+
+    /**
+     * Get completion percentage for progress tracking
+     */
+    public function getCompletionPercentage(): float
+    {
+        $completedQuarters = 0;
+        for ($i = 1; $i <= 4; $i++) {
+            if ($this->isQuarterComplete($i)) {
+                $completedQuarters++;
+            }
         }
+        return ($completedQuarters / 4) * 100;
+    }
+
+    /**
+     * Get planning percentage for progress tracking
+     */
+    public function getPlanningPercentage(): float
+    {
+        $plannedQuarters = 0;
+        for ($i = 1; $i <= 4; $i++) {
+            if ($this->isQuarterPlanSet($i)) {
+                $plannedQuarters++;
+            }
+        }
+        return ($plannedQuarters / 4) * 100;
+    }
+
+    /**
+     * Get variance between plan and realization for a quarter
+     */
+    public function getQuarterVariance(int $quarter): float
+    {
+        $rencanaField = "rencana_tw_{$quarter}";
+        $realisasiField = "realisasi_tw_{$quarter}";
+
+        $rencana = $this->{$rencanaField} ?? 0;
+        $realisasi = $this->{$realisasiField} ?? 0;
+
+        return $realisasi - $rencana;
+    }
+
+    /**
+     * Get variance percentage for a quarter
+     */
+    public function getQuarterVariancePercentage(int $quarter): float
+    {
+        $rencanaField = "rencana_tw_{$quarter}";
+        $realisasiField = "realisasi_tw_{$quarter}";
+
+        $rencana = $this->{$rencanaField} ?? 0;
+        $realisasi = $this->{$realisasiField} ?? 0;
+
+        if ($rencana > 0) {
+            return round((($realisasi - $rencana) / $rencana) * 100, 2);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get total variance between total plan and total realization
+     */
+    public function getTotalVariance(): float
+    {
+        return $this->getTotalRealisasiAttribute() - $this->getTotalRencanaAttribute();
+    }
+
+    /**
+     * Get total variance percentage
+     */
+    public function getTotalVariancePercentage(): float
+    {
+        $totalRencana = $this->getTotalRencanaAttribute();
+        if ($totalRencana > 0) {
+            return round((($this->getTotalRealisasiAttribute() - $totalRencana) / $totalRencana) * 100, 2);
+        }
+
+        return 0;
     }
 }

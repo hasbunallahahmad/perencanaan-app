@@ -4,7 +4,6 @@ namespace App\Filament\Resources\RealisasiAnggaranKasResource\Pages;
 
 use App\Filament\Resources\RealisasiAnggaranKasResource;
 use App\Models\RencanaAnggaranKas;
-use Filament\Pages\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateRealisasiAnggaranKas extends CreateRecord
@@ -13,20 +12,20 @@ class CreateRealisasiAnggaranKas extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Ensure required fields are not null before creation
-        if (empty($data['tahun']) || empty($data['triwulan']) || empty($data['kategori'])) {
-            if (!empty($data['rencana_anggaran_kas_id'])) {
-                $rencana = RencanaAnggaranKas::find($data['rencana_anggaran_kas_id']);
-                if ($rencana) {
-                    $data['tahun'] = $rencana->tahun;
-                    $data['triwulan'] = $rencana->triwulan;
-                    $data['kategori'] = $rencana->kategori;
-                }
-            }
+        // Hanya validasi untuk existing rencana
+        if (empty($data['rencana_anggaran_kas_id'])) {
+            throw new \Exception("Silakan pilih rencana anggaran yang sudah ada.");
+        }
+
+        // Validasi apakah rencana masih aktif
+        $rencana = RencanaAnggaranKas::find($data['rencana_anggaran_kas_id']);
+        if (!$rencana || $rencana->status !== 'approved') {
+            throw new \Exception("Rencana anggaran yang dipilih tidak valid atau belum disetujui.");
         }
 
         return $data;
     }
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');

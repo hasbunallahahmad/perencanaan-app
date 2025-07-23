@@ -20,11 +20,11 @@ class RencanaAnggaranKasResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationLabel = 'Rencana Anggaran Kas';
+    protected static ?string $navigationLabel = 'Jenis Anggaran';
 
-    protected static ?string $modelLabel = 'Rencana Anggaran Kas';
+    protected static ?string $modelLabel = 'Jenis Anggaran ';
 
-    protected static ?string $pluralModelLabel = 'Rencana Anggaran Kas';
+    protected static ?string $pluralModelLabel = 'Jenis Anggaran ';
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationGroup = 'Manajemen Anggaran';
     public static function canAccess(): bool
@@ -53,7 +53,7 @@ class RencanaAnggaranKasResource extends Resource
                                     ->required(),
 
                                 Forms\Components\Select::make('jenis_anggaran')
-                                    ->label('Jenis Anggaran')
+                                    ->label('Pagu Anggaran')
                                     ->options([
                                         'anggaran_murni' => 'Anggaran Murni',
                                         'pergeseran' => 'Pergeseran',
@@ -74,7 +74,7 @@ class RencanaAnggaranKasResource extends Resource
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\TextInput::make('jumlah_rencana')
-                                    ->label('Jumlah Rencana (Rp)')
+                                    ->label('Pagu (Rp)')
                                     ->numeric()
                                     ->required()
                                     ->prefix('Rp')
@@ -130,7 +130,7 @@ class RencanaAnggaranKasResource extends Resource
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('jumlah_rencana')
-                    ->label('Jumlah Rencana')
+                    ->label('Pagu Anggaran')
                     ->money('IDR')
                     ->sortable(),
 

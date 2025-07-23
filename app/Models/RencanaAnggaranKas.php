@@ -27,7 +27,7 @@ class RencanaAnggaranKas extends Model
     protected $casts = [
         'tahun' => 'integer',
         'jumlah_rencana' => 'decimal:2',
-        'tanggal_rencana' => 'nulllable|date',
+        'tanggal_rencana' => 'date',
     ];
 
     // Relationship

@@ -26,8 +26,8 @@ class RiwayatAnggaranKasWidget extends BaseWidget
 
         $stats = [];
 
-        // Tambahkan stat untuk Total Realisasi
-        $totalRealisasi = $this->getTotalRealisasi($currentYear);
+        // Tambahkan stat untuk Total Realisasi berdasarkan input terakhir
+        $totalRealisasiTerakhir = $this->getTotalRealisasiTerakhir($currentYear);
         $rencanaLatest = RencanaAnggaranKas::where('tahun', $currentYear)
             ->where('status', 'approved')
             ->orderBy('updated_at', 'desc')
@@ -36,13 +36,14 @@ class RiwayatAnggaranKasWidget extends BaseWidget
 
         $totalRencana = $rencanaLatest ? $rencanaLatest->jumlah_rencana : 0;
 
+        $persentaseTotal = 0;
         if ($totalRencana > 0) {
-            $persentaseTotal = round(($totalRealisasi / $totalRencana) * 100, 1);
+            $persentaseTotal = round(($totalRealisasiTerakhir / $totalRencana) * 100, 1);
         }
 
         $stats[] = Stat::make(
             'Total Realisasi',
-            'Rp ' . number_format($totalRealisasi, 0, ',', '.') . ' (' . $persentaseTotal . '%)'
+            'Rp ' . number_format($totalRealisasiTerakhir, 0, ',', '.') . ' (' . $persentaseTotal . '%)'
         )
             ->description('Dari total rencana: Rp ' . number_format($totalRencana, 0, ',', '.'))
             ->descriptionIcon('heroicon-m-chart-bar')
@@ -54,24 +55,21 @@ class RiwayatAnggaranKasWidget extends BaseWidget
 
         // Tambahkan stats untuk setiap jenis anggaran
         foreach ($riwayat as $index => $data) {
-            // Ambil data realisasi untuk jenis anggaran ini
-            $realisasi = $this->getRealisasiData($data['jenis_anggaran'], $currentYear);
+            // Ambil data realisasi terakhir untuk jenis anggaran ini
+            $realisasiTerakhir = $this->getRealisasiDataTerakhir($data['jenis_anggaran'], $currentYear);
 
             // Hitung persentase realisasi
             $persentase = 0;
-            // Gunakan jumlah_rencana dari data rencana anggaran terbaru
-            $jumlahRencana = $data['jumlah_rencana']; // Langsung dari data terbaru
+            $jumlahRencana = $data['jumlah_rencana'];
             if ($jumlahRencana > 0) {
-                $persentase = round(($realisasi / $jumlahRencana) * 100, 1);
+                $persentase = round(($realisasiTerakhir / $jumlahRencana) * 100, 1);
             }
 
             $stats[] = Stat::make(
                 $data['jenis_anggaran'],
                 'Rp ' . number_format($jumlahRencana, 0, ',', '.')
             )
-                // ->description('Realisasi: ' . $this->formatRupiah($realisasi))
                 ->description('Realisasi: ' . $persentase . '%')
-                // ->descriptionIcon('heroicon-m-banknotes')
                 ->descriptionIcon('heroicon-m-chart-bar')
                 ->color($this->getColorByJenis($data['jenis_anggaran']))
                 ->chart($this->getChartData($data['jenis_anggaran'], $currentYear))
@@ -81,7 +79,7 @@ class RiwayatAnggaranKasWidget extends BaseWidget
         }
 
         // Jika tidak ada data, tampilkan pesan
-        if (empty($riwayat)) { // Hanya ada stat total realisasi
+        if (empty($riwayat)) {
             $stats[] = Stat::make('Tidak ada data', 'Rp 0')
                 ->description('Belum ada rencana anggaran untuk tahun ' . $currentYear)
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
@@ -126,38 +124,53 @@ class RiwayatAnggaranKasWidget extends BaseWidget
 
         return $riwayat;
     }
-    private function getTotalRealisasi(int $tahun): float
+
+    /**
+     * Mendapatkan realisasi terakhir yang diinput (bukan total)
+     */
+    private function getTotalRealisasiTerakhir(int $tahun): float
     {
-        // Langsung ambil dari tabel realisasi_anggaran_kas tanpa filter kompleks
-        return RealisasiAnggaranKas::whereHas('rencanaAnggaranKas', function ($query) use ($tahun) {
+        // Ambil realisasi terakhir berdasarkan waktu input terakhir secara keseluruhan
+        $realisasiTerakhir = RealisasiAnggaranKas::whereHas('rencanaAnggaranKas', function ($query) use ($tahun) {
             $query->where('tahun', $tahun);
         })
             ->where('status', 'completed')
-            ->sum('jumlah_realisasi');
+            ->orderBy('updated_at', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return $realisasiTerakhir ? $realisasiTerakhir->jumlah_realisasi : 0;
     }
 
     /**
-     * Mendapatkan total rencana berdasarkan rencana terakhir yang diinput per jenis anggaran
+     * Mendapatkan data realisasi terakhir berdasarkan jenis anggaran
      */
-    private function getTotalRencana(int $tahun): float
+    private function getRealisasiDataTerakhir(string $jenisAnggaran, int $tahun): float
     {
-        // Ambil rencana terakhir berdasarkan created_at untuk setiap jenis anggaran yang ada
-        $rencanaList = RencanaAnggaranKas::where('tahun', $tahun)
-            ->where('status', 'approved')
-            ->selectRaw('jenis_anggaran, jumlah_rencana, created_at')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy('jenis_anggaran');
+        // Mapping jenis anggaran ke nilai enum
+        $jenisAnggaranMap = [
+            'Anggaran Murni' => 'anggaran_murni',
+            'Pergeseran' => 'pergeseran',
+            'Perubahan' => 'perubahan'
+        ];
 
-        $totalRencana = 0;
+        $jenisAnggaranCode = $jenisAnggaranMap[$jenisAnggaran] ?? null;
 
-        foreach ($rencanaList as $jenisAnggaran => $rencanaGroup) {
-            // Ambil rencana terakhir untuk setiap jenis anggaran
-            $rencanaLatest = $rencanaGroup->first();
-            $totalRencana += $rencanaLatest->jumlah_rencana;
+        if (!$jenisAnggaranCode) {
+            return 0;
         }
 
-        return $totalRencana;
+        // Ambil realisasi terakhir untuk jenis anggaran ini
+        $realisasiTerakhir = RealisasiAnggaranKas::whereHas('rencanaAnggaranKas', function ($query) use ($jenisAnggaranCode, $tahun) {
+            $query->where('jenis_anggaran', $jenisAnggaranCode)
+                ->where('tahun', $tahun);
+        })
+            ->where('status', 'completed')
+            ->orderBy('updated_at', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return $realisasiTerakhir ? $realisasiTerakhir->jumlah_realisasi : 0;
     }
 
     /**
@@ -206,32 +219,6 @@ class RiwayatAnggaranKasWidget extends BaseWidget
             ->first();
 
         return $rencanaLatest ? $rencanaLatest->jumlah_rencana : 0;
-    }
-
-    /**
-     * Mendapatkan data realisasi berdasarkan jenis anggaran
-     */
-    private function getRealisasiData(string $jenisAnggaran, int $tahun): float
-    {
-        // Mapping jenis anggaran ke nilai enum
-        $jenisAnggaranMap = [
-            'Anggaran Murni' => 'anggaran_murni',
-            'Pergeseran' => 'pergeseran',
-            'Perubahan' => 'perubahan'
-        ];
-
-        $jenisAnggaranCode = $jenisAnggaranMap[$jenisAnggaran] ?? null;
-
-        if (!$jenisAnggaranCode) {
-            return 0;
-        }
-
-        return RealisasiAnggaranKas::whereHas('rencanaAnggaranKas', function ($query) use ($jenisAnggaranCode, $tahun) {
-            $query->where('jenis_anggaran', $jenisAnggaranCode)
-                ->where('tahun', $tahun);
-        })
-            ->where('status', 'completed')
-            ->sum('jumlah_realisasi');
     }
 
     /**

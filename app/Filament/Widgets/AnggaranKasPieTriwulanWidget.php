@@ -9,7 +9,7 @@ use Filament\Widgets\ChartWidget;
 
 class AnggaranKasPieTriwulanWidget extends ChartWidget
 {
-    protected static ?string $heading = 'Distribusi Realisasi Anggaran per Triwulan';
+    protected static ?string $heading = 'Realisasi Anggaran Berdasarkan Input Terakhir';
 
     protected static ?int $sort = 4;
 
@@ -22,63 +22,91 @@ class AnggaranKasPieTriwulanWidget extends ChartWidget
     {
         $activeYear = YearContext::getActiveYear();
 
-        // Ambil total rencana anggaran
-        $totalRencana = RencanaAnggaranKas::where('status', 'approved')
-            ->where('tahun', $activeYear)
+        // Ambil realisasi terakhir berdasarkan input user terakhir
+        $latestRealisasi = RealisasiAnggaranKas::where('tahun', $activeYear)
+            ->where('status', 'completed')
             ->orderBy('created_at', 'desc')
-            ->first()
-            ->jumlah_rencana ?? 0;
+            ->first();
 
-        // Ambil data realisasi per triwulan
-        $realisasiPerTriwulan = [];
-        $labels = [];
-        $colors = [
-            'rgba(239, 68, 68, 0.8)',   // Merah untuk TW1
-            'rgba(245, 158, 11, 0.8)',  // Orange untuk TW2
-            'rgba(16, 185, 129, 0.8)',  // Hijau untuk TW3
-            'rgba(59, 130, 246, 0.8)',  // Biru untuk TW4
-        ];
+        // Jika tidak ada realisasi, set default values
+        if (!$latestRealisasi) {
+            $totalRealisasi = 0;
 
-        $totalRealisasi = 0;
+            // Ambil rencana anggaran untuk mendapatkan pagu
+            $rencanaAnggaran = RencanaAnggaranKas::where('status', 'approved')
+                ->where('tahun', $activeYear)
+                ->orderBy('created_at', 'desc')
+                ->first();
 
-        for ($i = 1; $i <= 4; $i++) {
-            $realisasi = RealisasiAnggaranKas::where('tahun', $activeYear)
-                ->where('triwulan', $i)
-                ->where('status', 'completed')
-                ->sum('jumlah_realisasi');
+            $totalRencana = $rencanaAnggaran ? $rencanaAnggaran->jumlah_rencana : 0;
+            $triwulanLabel = 'Belum Ada Realisasi';
+        } else {
+            // Hitung total realisasi dari semua triwulan
+            $totalRealisasi = ($latestRealisasi->realisasi_tw_1 ?? 0) +
+                ($latestRealisasi->realisasi_tw_2 ?? 0) +
+                ($latestRealisasi->realisasi_tw_3 ?? 0) +
+                ($latestRealisasi->realisasi_tw_4 ?? 0);
 
-            if ($realisasi > 0) {
-                $realisasiPerTriwulan[] = $realisasi;
-                $labels[] = "Triwulan $i";
-                $totalRealisasi += $realisasi;
+            // Ambil total rencana dari relasi atau hitung dari triwulan
+            if ($latestRealisasi->rencanaAnggaranKas) {
+                $totalRencana = $latestRealisasi->rencanaAnggaranKas->jumlah_rencana ?? 0;
+            } else {
+                // Fallback: hitung dari rencana per triwulan
+                $totalRencana = ($latestRealisasi->rencana_tw_1 ?? 0) +
+                    ($latestRealisasi->rencana_tw_2 ?? 0) +
+                    ($latestRealisasi->rencana_tw_3 ?? 0) +
+                    ($latestRealisasi->rencana_tw_4 ?? 0);
+            }
+
+            // Tentukan sampai triwulan berapa yang sudah ada realisasi
+            $lastTriwulan = 0;
+            if ($latestRealisasi->realisasi_tw_4 > 0) $lastTriwulan = 4;
+            elseif ($latestRealisasi->realisasi_tw_3 > 0) $lastTriwulan = 3;
+            elseif ($latestRealisasi->realisasi_tw_2 > 0) $lastTriwulan = 2;
+            elseif ($latestRealisasi->realisasi_tw_1 > 0) $lastTriwulan = 1;
+
+            $triwulanLabel = $lastTriwulan > 0 ? "Realisasi s/d TW $lastTriwulan" : 'Belum Ada Realisasi';
+        }
+
+        // Hitung sisa anggaran
+        $sisaAnggaran = $totalRencana - $totalRealisasi;
+        $sisaAnggaran = max(0, $sisaAnggaran);
+
+        // Data untuk pie chart - hanya 2 warna
+        if ($totalRealisasi > 0) {
+            $labels = [$triwulanLabel, 'Sisa Anggaran'];
+            $data = [$totalRealisasi, $sisaAnggaran];
+        } else {
+            // Jika tidak ada data sama sekali, tampilkan pesan yang tepat
+            if ($totalRencana > 0) {
+                $labels = ['Belum Ada Realisasi'];
+                $data = [$totalRencana];
+            } else {
+                $labels = ['Tidak Ada Data'];
+                $data = [1]; // Minimal value untuk menampilkan chart
             }
         }
 
-        // Tambahkan sisa anggaran jika ada
-        $sisaAnggaran = $totalRencana - $totalRealisasi;
-        if ($sisaAnggaran > 0) {
-            $realisasiPerTriwulan[] = $sisaAnggaran;
-            $labels[] = 'Sisa Anggaran';
-            $colors[] = 'rgba(156, 163, 175, 0.8)'; // Abu-abu untuk sisa anggaran
-        }
+        $colors = [
+            'rgba(16, 185, 129, 0.8)',  // Hijau untuk realisasi
+            'rgba(245, 102, 39, 0.8)',  // Orange untuk sisa anggaran
+            'rgba(156, 163, 175, 0.8)', // Abu-abu untuk tidak ada data
+        ];
 
-        // Pastikan ada data untuk ditampilkan
-        if (empty($realisasiPerTriwulan)) {
-            $realisasiPerTriwulan = [$totalRencana];
-            $labels = ['Belum Ada Realisasi'];
-            $colors = ['rgba(156, 163, 175, 0.8)'];
-        }
+        $borderColors = [
+            'rgb(16, 185, 129)',
+            'rgb(245, 102, 39)',
+            'rgb(156, 163, 175)',
+        ];
 
         return [
             'datasets' => [
                 [
-                    'data' => $realisasiPerTriwulan,
-                    'backgroundColor' => array_slice($colors, 0, count($realisasiPerTriwulan)),
-                    'borderColor' => array_map(function ($color) {
-                        return str_replace('0.8', '1', $color);
-                    }, array_slice($colors, 0, count($realisasiPerTriwulan))),
+                    'data' => $data,
+                    'backgroundColor' => array_slice($colors, 0, count($data)),
+                    'borderColor' => array_slice($borderColors, 0, count($data)),
                     'borderWidth' => 2,
-                    'hoverOffset' => 4, // Menambahkan efek hover
+                    'hoverOffset' => 4,
                 ],
             ],
             'labels' => $labels,
@@ -88,7 +116,27 @@ class AnggaranKasPieTriwulanWidget extends ChartWidget
     public function getHeading(): string
     {
         $activeYear = YearContext::getActiveYear();
-        return 'Distribusi Realisasi Anggaran per Triwulan - Tahun ' . $activeYear;
+
+        // Ambil realisasi terakhir untuk mendapatkan triwulan
+        $latestRealisasi = RealisasiAnggaranKas::where('tahun', $activeYear)
+            ->where('status', 'completed')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($latestRealisasi) {
+            // Tentukan sampai triwulan berapa yang sudah ada realisasi
+            $lastTriwulan = 0;
+            if ($latestRealisasi->realisasi_tw_4 > 0) $lastTriwulan = 4;
+            elseif ($latestRealisasi->realisasi_tw_3 > 0) $lastTriwulan = 3;
+            elseif ($latestRealisasi->realisasi_tw_2 > 0) $lastTriwulan = 2;
+            elseif ($latestRealisasi->realisasi_tw_1 > 0) $lastTriwulan = 1;
+
+            if ($lastTriwulan > 0) {
+                return "Realisasi Anggaran s/d TW $lastTriwulan - $activeYear";
+            }
+        }
+
+        return "Realisasi Anggaran - $activeYear";
     }
 
     protected function getType(): string
@@ -98,31 +146,13 @@ class AnggaranKasPieTriwulanWidget extends ChartWidget
 
     protected function getOptions(): array
     {
-        $activeYear = YearContext::getActiveYear();
-
-        // Ambil data untuk tooltip
-        $totalRencana = RencanaAnggaranKas::where('status', 'approved')
-            ->where('tahun', $activeYear)
-            ->orderBy('created_at', 'desc')
-            ->first()
-            ->jumlah_rencana ?? 0;
-
-        $realisasiPerTriwulan = [];
-        for ($i = 1; $i <= 4; $i++) {
-            $realisasi = RealisasiAnggaranKas::where('tahun', $activeYear)
-                ->where('triwulan', $i)
-                ->where('status', 'completed')
-                ->sum('jumlah_realisasi');
-            $realisasiPerTriwulan[$i] = $realisasi;
-        }
-
         return [
             'plugins' => [
                 'legend' => [
                     'display' => true,
-                    'position' => 'right',
+                    'position' => 'bottom',
                     'labels' => [
-                        'padding' => 15,
+                        'padding' => 20,
                         'usePointStyle' => true,
                         'font' => [
                             'size' => 12
@@ -150,15 +180,16 @@ class AnggaranKasPieTriwulanWidget extends ChartWidget
             ],
             'elements' => [
                 'arc' => [
-                    'hoverBackgroundColor' => array_map(function ($color) {
-                        return str_replace('0.8', '1', $color);
-                    }, [
-                        'rgba(239, 68, 68, 0.8)',
-                        'rgba(245, 158, 11, 0.8)',
-                        'rgba(16, 185, 129, 0.8)',
-                        'rgba(59, 130, 246, 0.8)',
-                        'rgba(156, 163, 175, 0.8)'
-                    ]),
+                    'hoverBackgroundColor' => [
+                        'rgba(16, 185, 129, 1)',
+                        'rgba(245, 102, 39, 1)',
+                        'rgba(156, 163, 175, 1)',
+                    ],
+                    'hoverBorderColor' => [
+                        'rgb(16, 185, 129)',
+                        'rgb(245, 102, 39)',
+                        'rgb(156, 163, 175)',
+                    ],
                     'hoverBorderWidth' => 3,
                 ]
             ]
@@ -169,24 +200,57 @@ class AnggaranKasPieTriwulanWidget extends ChartWidget
     protected function getExtraJs(): string
     {
         $activeYear = YearContext::getActiveYear();
-        $totalRencana = RencanaAnggaranKas::where('status', 'approved')
-            ->where('tahun', $activeYear)
-            ->sum('jumlah_rencana');
 
-        $realisasiPerTriwulan = [];
-        for ($i = 1; $i <= 4; $i++) {
-            $realisasi = RealisasiAnggaranKas::where('tahun', $activeYear)
-                ->where('triwulan', $i)
-                ->where('status', 'completed')
-                ->sum('jumlah_realisasi');
-            $realisasiPerTriwulan[$i] = $realisasi;
+        // Ambil realisasi terakhir untuk JavaScript
+        $latestRealisasi = RealisasiAnggaranKas::where('tahun', $activeYear)
+            ->where('status', 'completed')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($latestRealisasi) {
+            // Hitung total realisasi dari semua triwulan
+            $totalRealisasi = ($latestRealisasi->realisasi_tw_1 ?? 0) +
+                ($latestRealisasi->realisasi_tw_2 ?? 0) +
+                ($latestRealisasi->realisasi_tw_3 ?? 0) +
+                ($latestRealisasi->realisasi_tw_4 ?? 0);
+
+            // Ambil total rencana
+            if ($latestRealisasi->rencanaAnggaranKas) {
+                $totalRencana = $latestRealisasi->rencanaAnggaranKas->jumlah_rencana ?? 0;
+                $jenisAnggaran = $latestRealisasi->rencanaAnggaranKas->jenis_anggaran_text ?? 'N/A';
+            } else {
+                $totalRencana = ($latestRealisasi->rencana_tw_1 ?? 0) +
+                    ($latestRealisasi->rencana_tw_2 ?? 0) +
+                    ($latestRealisasi->rencana_tw_3 ?? 0) +
+                    ($latestRealisasi->rencana_tw_4 ?? 0);
+                $jenisAnggaran = 'N/A';
+            }
+
+            // Tentukan triwulan terakhir
+            $lastTriwulan = 0;
+            if ($latestRealisasi->realisasi_tw_4 > 0) $lastTriwulan = 4;
+            elseif ($latestRealisasi->realisasi_tw_3 > 0) $lastTriwulan = 3;
+            elseif ($latestRealisasi->realisasi_tw_2 > 0) $lastTriwulan = 2;
+            elseif ($latestRealisasi->realisasi_tw_1 > 0) $lastTriwulan = 1;
+
+            $tanggalInput = $latestRealisasi->created_at->format('d/m/Y H:i');
+        } else {
+            $totalRealisasi = 0;
+            $rencanaAnggaran = RencanaAnggaranKas::where('status', 'approved')
+                ->where('tahun', $activeYear)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            $totalRencana = $rencanaAnggaran ? $rencanaAnggaran->jumlah_rencana : 0;
+            $lastTriwulan = 0;
+            $jenisAnggaran = 'N/A';
+            $tanggalInput = 'N/A';
         }
 
         return "
         if (window.chart) {
             window.chart.options.plugins.tooltip.callbacks = {
                 title: function(context) {
-                    return 'Distribusi Anggaran Tahun {$activeYear}';
+                    return 'Anggaran Kas Tahun {$activeYear}';
                 },
                 label: function(context) {
                     const label = context.label || '';
@@ -195,6 +259,10 @@ class AnggaranKasPieTriwulanWidget extends ChartWidget
                     const percentage = ((value / total) * 100).toFixed(1);
                     const formattedValue = new Intl.NumberFormat('id-ID').format(value);
                     
+                    if (label === 'Tidak Ada Data') {
+                        return 'Belum ada data untuk tahun ini';
+                    }
+                    
                     return [
                         label + ': Rp ' + formattedValue,
                         'Persentase: ' + percentage + '%'
@@ -202,31 +270,43 @@ class AnggaranKasPieTriwulanWidget extends ChartWidget
                 },
                 afterLabel: function(context) {
                     const label = context.label;
-                    const value = context.raw || 0;
                     const totalRencana = {$totalRencana};
-                    const realisasiData = " . json_encode($realisasiPerTriwulan) . ";
+                    const totalRealisasi = {$totalRealisasi};
+                    const lastTriwulan = {$lastTriwulan};
+                    const jenisAnggaran = '{$jenisAnggaran}';
+                    const tanggalInput = '{$tanggalInput}';
                     
-                    if (label.includes('Triwulan')) {
-                        const triwulan = label.split(' ')[1];
-                        const targetPerTriwulan = totalRencana / 4;
-                        const pencapaian = targetPerTriwulan > 0 ? ((value / targetPerTriwulan) * 100).toFixed(1) : 0;
+                    if (label === 'Tidak Ada Data') {
+                        return [
+                            '───────────────────────',
+                            'Silakan input rencana anggaran',
+                            'terlebih dahulu untuk tahun ini'
+                        ];
+                    }
+                    
+                    if (label.includes('Realisasi TW') || label.includes('Realisasi s/d TW')) {
+                        const efisiensi = totalRencana > 0 ? ((totalRealisasi / totalRencana) * 100).toFixed(1) : 0;
                         
                         return [
-                            'Target per TW: Rp ' + new Intl.NumberFormat('id-ID').format(targetPerTriwulan),
-                            'Pencapaian: ' + pencapaian + '% dari target',
-                            'Status: ' + (value >= targetPerTriwulan ? '✅ Tercapai' : '⚠️ Belum tercapai')
+                            '───────────────────────',
+                            'Jenis Anggaran: ' + jenisAnggaran,
+                            'Total Rencana: Rp ' + new Intl.NumberFormat('id-ID').format(totalRencana),
+                            'Efisiensi: ' + efisiensi + '%',
+                            'Tanggal Input: ' + tanggalInput,
+                            'Data dari: Input terakhir user'
                         ];
                     } else if (label === 'Sisa Anggaran') {
-                        const totalRealisasi = Object.values(realisasiData).reduce((a, b) => a + b, 0);
                         const sisaPersentase = totalRencana > 0 ? (((totalRencana - totalRealisasi) / totalRencana) * 100).toFixed(1) : 0;
                         
                         return [
+                            '───────────────────────',
                             'Total Rencana: Rp ' + new Intl.NumberFormat('id-ID').format(totalRencana),
-                            'Total Realisasi: Rp ' + new Intl.NumberFormat('id-ID').format(totalRealisasi),
-                            'Sisa: ' + sisaPersentase + '% dari rencana'
+                            'Sisa: ' + sisaPersentase + '% dari rencana',
+                            'Data dari: Input terakhir user'
                         ];
                     } else if (label === 'Belum Ada Realisasi') {
                         return [
+                            '───────────────────────',
                             'Total Rencana: Rp ' + new Intl.NumberFormat('id-ID').format(totalRencana),
                             'Belum ada realisasi untuk tahun ini'
                         ];

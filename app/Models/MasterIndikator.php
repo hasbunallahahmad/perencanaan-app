@@ -7,6 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property string $nama_indikator
+ * @property string|null $deskripsi
+ * @property string|null $satuan
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ * 
+ * // Relations
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Program[] $program
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Program[] $program2
+ */
 class MasterIndikator extends Model
 {
     use HasFactory, SoftDeletes;
