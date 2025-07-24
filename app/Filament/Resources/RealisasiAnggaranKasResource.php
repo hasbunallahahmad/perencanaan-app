@@ -82,9 +82,6 @@ class RealisasiAnggaranKasResource extends Resource
                                             if ($rencana) {
                                                 $set('jenis_anggaran', $rencana->jenis_anggaran_text);
                                                 $set('pagu', $rencana->jumlah_rencana);
-
-                                                // Hanya set pagu, user akan input rencana per triwulan sendiri
-                                                // Tidak lagi auto-calculate rencana per triwulan
                                             }
                                         }
                                     }),
@@ -101,15 +98,14 @@ class RealisasiAnggaranKasResource extends Resource
                                     ->prefix('Rp')
                                     ->live()
                                     ->formatStateUsing(function ($state, $get) {
-                                        // Ambil dari rencana anggaran kas yang dipilih
                                         $rencanaId = $get('rencana_anggaran_kas_id');
                                         if ($rencanaId) {
-                                            $rencana = \App\Models\RencanaAnggaranKas::find($rencanaId);
+                                            $rencana = RencanaAnggaranKas::find($rencanaId);
                                             if ($rencana && $rencana->jumlah_rencana) {
                                                 return number_format($rencana->jumlah_rencana, 0, ',', '.');
                                             }
                                         }
-                                        return $state ? number_format($state, 0, ',', '.') : '0';
+                                        return $state ? number_format((float)$state, 0, ',', '.') : '0';
                                     }),
 
                             ]),
@@ -248,15 +244,14 @@ class RealisasiAnggaranKasResource extends Resource
                                     ->prefix('Rp')
                                     ->numeric()
                                     ->formatStateUsing(function ($state, $get) {
-                                        // Ambil dari rencana anggaran kas yang dipilih
                                         $rencanaId = $get('rencana_anggaran_kas_id');
                                         if ($rencanaId) {
-                                            $rencana = \App\Models\RencanaAnggaranKas::find($rencanaId);
+                                            $rencana = RencanaAnggaranKas::find($rencanaId);
                                             if ($rencana && $rencana->jumlah_rencana) {
                                                 return number_format($rencana->jumlah_rencana, 0, ',', '.');
                                             }
                                         }
-                                        return $state ? number_format($state, 0, ',', '.') : '0';
+                                        return $state ? number_format((float)$state, 0, ',', '.') : '0';
                                     }),
 
                                 TextInput::make('persentase_total')
@@ -294,40 +289,61 @@ class RealisasiAnggaranKasResource extends Resource
 
     protected static function calculatePercentage(callable $get, callable $set): void
     {
+        // Konversi semua nilai ke float dengan penanganan null dan string
         $totalRealisasi = collect([
-            $get('realisasi_tw_1') ?? 0,
-            $get('realisasi_tw_2') ?? 0,
-            $get('realisasi_tw_3') ?? 0,
-            $get('realisasi_tw_4') ?? 0,
+            static::convertToFloat($get('realisasi_tw_1')),
+            static::convertToFloat($get('realisasi_tw_2')),
+            static::convertToFloat($get('realisasi_tw_3')),
+            static::convertToFloat($get('realisasi_tw_4')),
         ])->sum();
 
         $totalRencana = collect([
-            $get('rencana_tw_1') ?? 0,
-            $get('rencana_tw_2') ?? 0,
-            $get('rencana_tw_3') ?? 0,
-            $get('rencana_tw_4') ?? 0,
+            static::convertToFloat($get('rencana_tw_1')),
+            static::convertToFloat($get('rencana_tw_2')),
+            static::convertToFloat($get('rencana_tw_3')),
+            static::convertToFloat($get('rencana_tw_4')),
         ])->sum();
 
         $set('realisasi_sd_tw', $totalRealisasi);
 
-        // Hitung persentase berdasarkan total rencana, bukan pagu
+        // Hitung persentase berdasarkan total rencana
         if ($totalRencana > 0) {
             $persentase = round(($totalRealisasi / $totalRencana) * 100, 2);
             $set('persentase_total', $persentase);
         } else {
             $set('persentase_total', 0);
         }
-        $pagu = $get('pagu') ?? 0;
+
+        // Konversi pagu juga ke float
+        $pagu = static::convertToFloat($get('pagu'));
 
         if ($totalRencana > $pagu && $pagu > 0) {
-            // Show warning atau error
-            // Contoh menggunakan notification:
             \Filament\Notifications\Notification::make()
                 ->title('Peringatan!')
                 ->body('Total rencana (Rp ' . number_format($totalRencana, 0, ',', '.') . ') melebihi pagu (Rp ' . number_format($pagu, 0, ',', '.') . ')')
                 ->warning()
                 ->send();
         }
+    }
+
+    /**
+     * Helper method untuk konversi nilai ke float
+     */
+    protected static function convertToFloat($value): float
+    {
+        if (is_null($value) || $value === '') {
+            return 0.0;
+        }
+
+        if (is_string($value)) {
+            // Hapus formatting seperti koma dan titik untuk currency
+            $cleaned = str_replace([',', '.'], ['', '.'], $value);
+            // Jika masih ada karakter non-numeric, ambil hanya angka
+            $cleaned = preg_replace('/[^0-9.]/', '', $cleaned);
+            return (float)$cleaned;
+        }
+
+        return (float)$value;
     }
 
     public static function table(Table $table): Table
@@ -380,12 +396,13 @@ class RealisasiAnggaranKasResource extends Resource
                     ->label('Rencana')
                     ->money('IDR')
                     ->getStateUsing(function ($record) {
-                        return ($record->rencana_tw_1 ?? 0) +
-                            ($record->rencana_tw_2 ?? 0) +
-                            ($record->rencana_tw_3 ?? 0) +
-                            ($record->rencana_tw_4 ?? 0);
+                        return static::convertToFloat($record->rencana_tw_1) +
+                            static::convertToFloat($record->rencana_tw_2) +
+                            static::convertToFloat($record->rencana_tw_3) +
+                            static::convertToFloat($record->rencana_tw_4);
                     })
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('realisasi_tw_1')
                     ->label(' TW 1')
                     ->money('IDR')
@@ -410,31 +427,29 @@ class RealisasiAnggaranKasResource extends Resource
                     ->sortable()
                     ->toggleable(),
 
-
-
                 Tables\Columns\TextColumn::make('total_realisasi')
                     ->label('Realisasi')
                     ->money('IDR')
                     ->getStateUsing(function ($record) {
-                        return ($record->realisasi_tw_1 ?? 0) +
-                            ($record->realisasi_tw_2 ?? 0) +
-                            ($record->realisasi_tw_3 ?? 0) +
-                            ($record->realisasi_tw_4 ?? 0);
+                        return static::convertToFloat($record->realisasi_tw_1) +
+                            static::convertToFloat($record->realisasi_tw_2) +
+                            static::convertToFloat($record->realisasi_tw_3) +
+                            static::convertToFloat($record->realisasi_tw_4);
                     })
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('persentase_total')
                     ->label('Persentase')
                     ->formatStateUsing(function ($record) {
-                        $totalRealisasi = ($record->realisasi_tw_1 ?? 0) +
-                            ($record->realisasi_tw_2 ?? 0) +
-                            ($record->realisasi_tw_3 ?? 0) +
-                            ($record->realisasi_tw_4 ?? 0);
+                        $totalRealisasi = static::convertToFloat($record->realisasi_tw_1) +
+                            static::convertToFloat($record->realisasi_tw_2) +
+                            static::convertToFloat($record->realisasi_tw_3) +
+                            static::convertToFloat($record->realisasi_tw_4);
 
-                        $totalRencana = ($record->rencana_tw_1 ?? 0) +
-                            ($record->rencana_tw_2 ?? 0) +
-                            ($record->rencana_tw_3 ?? 0) +
-                            ($record->rencana_tw_4 ?? 0);
+                        $totalRencana = static::convertToFloat($record->rencana_tw_1) +
+                            static::convertToFloat($record->rencana_tw_2) +
+                            static::convertToFloat($record->rencana_tw_3) +
+                            static::convertToFloat($record->rencana_tw_4);
 
                         if ($totalRencana > 0) {
                             $persentase = round(($totalRealisasi / $totalRencana) * 100, 2);
@@ -444,15 +459,15 @@ class RealisasiAnggaranKasResource extends Resource
                     })
                     ->badge()
                     ->color(function ($record) {
-                        $totalRealisasi = ($record->realisasi_tw_1 ?? 0) +
-                            ($record->realisasi_tw_2 ?? 0) +
-                            ($record->realisasi_tw_3 ?? 0) +
-                            ($record->realisasi_tw_4 ?? 0);
+                        $totalRealisasi = static::convertToFloat($record->realisasi_tw_1) +
+                            static::convertToFloat($record->realisasi_tw_2) +
+                            static::convertToFloat($record->realisasi_tw_3) +
+                            static::convertToFloat($record->realisasi_tw_4);
 
-                        $totalRencana = ($record->rencana_tw_1 ?? 0) +
-                            ($record->rencana_tw_2 ?? 0) +
-                            ($record->rencana_tw_3 ?? 0) +
-                            ($record->rencana_tw_4 ?? 0);
+                        $totalRencana = static::convertToFloat($record->rencana_tw_1) +
+                            static::convertToFloat($record->rencana_tw_2) +
+                            static::convertToFloat($record->rencana_tw_3) +
+                            static::convertToFloat($record->rencana_tw_4);
 
                         if ($totalRencana > 0) {
                             $persentase = round(($totalRealisasi / $totalRencana) * 100, 2);
@@ -508,7 +523,6 @@ class RealisasiAnggaranKasResource extends Resource
                     ]),
             ])
             ->actions([
-                // Tambahkan custom action ini
                 Action::make('updateRealisasi')
                     ->label('Update Realisasi')
                     ->icon('heroicon-o-pencil-square')
@@ -557,12 +571,11 @@ class RealisasiAnggaranKasResource extends Resource
                     ->action(function ($record, array $data) {
                         $record->update($data);
 
-                        // Trigger recalculation (optional)
                         $totalRealisasi = collect([
-                            $data['realisasi_tw_1'] ?? 0,
-                            $data['realisasi_tw_2'] ?? 0,
-                            $data['realisasi_tw_3'] ?? 0,
-                            $data['realisasi_tw_4'] ?? 0,
+                            static::convertToFloat($data['realisasi_tw_1'] ?? 0),
+                            static::convertToFloat($data['realisasi_tw_2'] ?? 0),
+                            static::convertToFloat($data['realisasi_tw_3'] ?? 0),
+                            static::convertToFloat($data['realisasi_tw_4'] ?? 0),
                         ])->sum();
 
                         $record->update(['realisasi_sd_tw' => $totalRealisasi]);
@@ -576,7 +589,6 @@ class RealisasiAnggaranKasResource extends Resource
                     ->modalHeading('Update Realisasi')
                     ->modalWidth('4xl'),
 
-                // ActionGroup yang sudah ada
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),

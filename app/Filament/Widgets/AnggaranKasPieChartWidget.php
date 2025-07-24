@@ -40,13 +40,22 @@ class AnggaranKasPieChartWidget extends ChartWidget
 
             $totalRencana = $rencanaAnggaran ? $rencanaAnggaran->jumlah_rencana : 0;
         } else {
-            // Ambil total realisasi dari input terakhir user
-            $totalRealisasi = $latestRealisasi->jumlah_realisasi ?? 0;
+            // PERBAIKAN: Hitung total realisasi dari semua triwulan (sama seperti widget kedua)
+            $totalRealisasi = ($latestRealisasi->realisasi_tw_1 ?? 0) +
+                ($latestRealisasi->realisasi_tw_2 ?? 0) +
+                ($latestRealisasi->realisasi_tw_3 ?? 0) +
+                ($latestRealisasi->realisasi_tw_4 ?? 0);
 
             // Perbaikan: Tambahkan null check untuk relasi
             $totalRencana = 0;
             if ($latestRealisasi->rencanaAnggaranKas) {
                 $totalRencana = $latestRealisasi->rencanaAnggaranKas->jumlah_rencana ?? 0;
+            } else {
+                // Fallback: hitung dari rencana per triwulan
+                $totalRencana = ($latestRealisasi->rencana_tw_1 ?? 0) +
+                    ($latestRealisasi->rencana_tw_2 ?? 0) +
+                    ($latestRealisasi->rencana_tw_3 ?? 0) +
+                    ($latestRealisasi->rencana_tw_4 ?? 0);
             }
         }
 
@@ -117,7 +126,14 @@ class AnggaranKasPieChartWidget extends ChartWidget
             ->orderBy('created_at', 'desc')
             ->first();
 
-        $totalRealisasi = $latestRealisasi ? ($latestRealisasi->jumlah_realisasi ?? 0) : 0;
+        // PERBAIKAN: Gunakan perhitungan yang sama seperti widget kedua
+        $totalRealisasi = 0;
+        if ($latestRealisasi) {
+            $totalRealisasi = ($latestRealisasi->realisasi_tw_1 ?? 0) +
+                ($latestRealisasi->realisasi_tw_2 ?? 0) +
+                ($latestRealisasi->realisasi_tw_3 ?? 0) +
+                ($latestRealisasi->realisasi_tw_4 ?? 0);
+        }
 
         // Perbaikan: Tambahkan null check untuk rencana anggaran
         $totalRencana = 0;
@@ -190,7 +206,14 @@ class AnggaranKasPieChartWidget extends ChartWidget
             ->orderBy('created_at', 'desc')
             ->first();
 
-        $totalRealisasi = $latestRealisasi ? ($latestRealisasi->jumlah_realisasi ?? 0) : 0;
+        // PERBAIKAN: Gunakan perhitungan yang sama seperti widget kedua
+        $totalRealisasi = 0;
+        if ($latestRealisasi) {
+            $totalRealisasi = ($latestRealisasi->realisasi_tw_1 ?? 0) +
+                ($latestRealisasi->realisasi_tw_2 ?? 0) +
+                ($latestRealisasi->realisasi_tw_3 ?? 0) +
+                ($latestRealisasi->realisasi_tw_4 ?? 0);
+        }
 
         // Perbaikan: Tambahkan null check untuk rencana anggaran
         $totalRencana = 0;
@@ -216,11 +239,11 @@ class AnggaranKasPieChartWidget extends ChartWidget
                     const total = context.dataset.data.reduce((a, b) => a + b, 0);
                     const percentage = ((value / total) * 100).toFixed(1);
                     const formattedValue = new Intl.NumberFormat('id-ID').format(value);
-                    
+
                     if (label === 'Tidak Ada Data') {
                         return 'Belum ada data untuk tahun ini';
                     }
-                    
+
                     return [
                         label + ': Rp ' + formattedValue,
                         'Persentase: ' + percentage + '%'
@@ -229,7 +252,7 @@ class AnggaranKasPieChartWidget extends ChartWidget
                 afterLabel: function(context) {
                     const totalRencana = {$totalRencana};
                     const totalRealisasi = {$totalRealisasi};
-                    
+
                     if (context.label === 'Tidak Ada Data') {
                         return [
                             '───────────────────────',
@@ -237,7 +260,7 @@ class AnggaranKasPieChartWidget extends ChartWidget
                             'terlebih dahulu untuk tahun ini'
                         ];
                     }
-                    
+
                     if (context.label === 'Realisasi') {
                         const efisiensi = totalRencana > 0 ? ((totalRealisasi / totalRencana) * 100).toFixed(1) : 0;
                         return [

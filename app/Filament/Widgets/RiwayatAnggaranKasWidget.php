@@ -139,7 +139,7 @@ class RiwayatAnggaranKasWidget extends BaseWidget
             ->orderBy('created_at', 'desc')
             ->first();
 
-        return $realisasiTerakhir ? $realisasiTerakhir->jumlah_realisasi : 0;
+        return $realisasiTerakhir ? $realisasiTerakhir->realisasi_sd_tw : 0;
     }
 
     /**
@@ -170,7 +170,7 @@ class RiwayatAnggaranKasWidget extends BaseWidget
             ->orderBy('created_at', 'desc')
             ->first();
 
-        return $realisasiTerakhir ? $realisasiTerakhir->jumlah_realisasi : 0;
+        return $realisasiTerakhir ? $realisasiTerakhir->realisasi_sd_tw : 0;
     }
 
     /**
@@ -186,7 +186,7 @@ class RiwayatAnggaranKasWidget extends BaseWidget
             })
                 ->where('triwulan', $triwulan)
                 ->where('status', 'completed')
-                ->sum('jumlah_realisasi');
+                ->sum('realisasi_sd_tw');
 
             $chartData[] = $realisasi;
         }
@@ -247,7 +247,7 @@ class RiwayatAnggaranKasWidget extends BaseWidget
             })
                 ->where('triwulan', $triwulan)
                 ->where('status', 'completed')
-                ->sum('jumlah_realisasi');
+                ->sum('realisasi_sd_tw');
 
             $chartData[] = $realisasi;
         }

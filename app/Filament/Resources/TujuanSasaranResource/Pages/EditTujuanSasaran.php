@@ -13,33 +13,30 @@ class EditTujuanSasaran extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\ViewAction::make()
-                ->label('Lihat')
-                ->icon('heroicon-o-eye'),
-            Actions\DeleteAction::make()
-                ->label('Hapus')
-                ->icon('heroicon-o-trash'),
-            Actions\ForceDeleteAction::make()
-                ->label('Hapus Permanen'),
-            Actions\RestoreAction::make()
-                ->label('Pulihkan'),
+            Actions\ViewAction::make(),
+            Actions\DeleteAction::make(),
+            Actions\ForceDeleteAction::make(),
+            Actions\RestoreAction::make(),
+            Actions\Action::make('reset_realisasi')
+                ->label('Reset Realisasi')
+                ->icon('heroicon-o-arrow-path')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Reset Realisasi')
+                ->modalDescription('Apakah Anda yakin ingin mengatur ulang semua realisasi ke 0?')
+                ->action(fn() => $this->record->resetRealisasi())
+                ->successNotificationTitle('Realisasi berhasil direset')
+                ->after(fn() => $this->fillForm()),
         ];
     }
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
     }
 
-    protected function getSaveFormAction(): Actions\Action
+    protected function getSavedNotificationTitle(): ?string
     {
-        return parent::getSaveFormAction()
-            ->label('Simpan Perubahan')
-            ->icon('heroicon-o-check');
-    }
-
-    protected function getCancelFormAction(): Actions\Action
-    {
-        return parent::getCancelFormAction()
-            ->label('Batal');
+        return 'Tujuan & Sasaran berhasil diperbarui';
     }
 }

@@ -5,35 +5,46 @@ namespace App\Filament\Resources\TujuanSasaranResource\Pages;
 use App\Filament\Resources\TujuanSasaranResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Resources\Components\Tab;
+use Illuminate\Database\Eloquent\Builder;
 
 class ListTujuanSasarans extends ListRecords
 {
     protected static string $resource = TujuanSasaranResource::class;
-    public function table(Table $table): Table
-    {
-        return $this->getResource()::table($table)
-            ->emptyStateHeading('Belum Ada Data Tujuan & Sasaran')
-            ->emptyStateDescription('Mulai dengan menambahkan tujuan dan sasaran organisasi Anda. Data ini akan menjadi dasar untuk perencanaan dan monitoring kinerja.')
-            ->emptyStateIcon('heroicon-o-clipboard-document-list')
-            ->emptyStateActions([
-                Tables\Actions\CreateAction::make()
-                    ->label('Buat Tujuan & Sasaran Pertama')
-                    ->icon('heroicon-o-plus-circle')
-                    ->button()
-                    ->color('primary'),
-            ]);
-    }
+
     protected function getHeaderActions(): array
     {
         return [
             Actions\CreateAction::make()
-                ->label('Tambah  Tujuan & Sasaran')
-                ->icon('heroicon-o-plus')
-                ->color('primary')
-                ->tooltip('Tambah tujuan & sasaran baru'),
+                ->label('Tambah Tujuan & Sasaran'),
+        ];
+    }
+
+    public function getTabs(): array
+    {
+        return [
+            'all' => Tab::make('Semua')
+                ->badge($this->getModel()::count()),
+
+            'current_year' => Tab::make('Tahun Ini')
+                ->modifyQueryUsing(fn(Builder $query) => $query->where('tahun', date('Y')))
+                ->badge($this->getModel()::where('tahun', date('Y'))->count()),
+
+            'tercapai' => Tab::make('Tercapai')
+                ->modifyQueryUsing(fn(Builder $query) => $query->highAchievement(100))
+                ->badge($this->getModel()::highAchievement(100)->count()),
+
+            'baik' => Tab::make('Baik')
+                ->modifyQueryUsing(fn(Builder $query) => $query->achievementBetween(75, 99.99))
+                ->badge($this->getModel()::achievementBetween(75, 99.99)->count()),
+
+            'cukup' => Tab::make('Cukup')
+                ->modifyQueryUsing(fn(Builder $query) => $query->achievementBetween(50, 74.99))
+                ->badge($this->getModel()::achievementBetween(50, 74.99)->count()),
+
+            'kurang' => Tab::make('Kurang')
+                ->modifyQueryUsing(fn(Builder $query) => $query->lowAchievement(50))
+                ->badge($this->getModel()::lowAchievement(50)->count()),
         ];
     }
 }

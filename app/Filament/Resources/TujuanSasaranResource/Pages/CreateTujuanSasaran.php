@@ -9,21 +9,14 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateTujuanSasaran extends CreateRecord
 {
     protected static string $resource = TujuanSasaranResource::class;
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
     }
 
-    protected function getCreateFormAction(): Actions\Action
+    protected function getCreatedNotificationTitle(): ?string
     {
-        return parent::getCreateFormAction()
-            ->label('Simpan')
-            ->icon('heroicon-o-check');
-    }
-
-    protected function getCancelFormAction(): Actions\Action
-    {
-        return parent::getCancelFormAction()
-            ->label('Batal');
+        return 'Tujuan & Sasaran berhasil dibuat';
     }
 }

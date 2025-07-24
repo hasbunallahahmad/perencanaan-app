@@ -32,18 +32,17 @@ class RealisasiAnggaranKas extends Model
         'tanggal_realisasi_tw_2',
         'tanggal_realisasi_tw_3',
         'tanggal_realisasi_tw_4',
+        'tanggal_realisasi',
         'realisasi_sd_tw',
         'persentase_total',
         'persentase_realisasi',
-        'tanggal_realisasi',
         'status',
         'catatan_realisasi',
-        'bukti_dokumen'
+        'bukti_dokumen',
     ];
 
     protected $casts = [
-        'tahun' => 'integer',
-        'jumlah_realisasi' => 'decimal:2',
+        // Data finansial menggunakan decimal untuk presisi tinggi
         'rencana_tw_1' => 'decimal:2',
         'rencana_tw_2' => 'decimal:2',
         'rencana_tw_3' => 'decimal:2',
@@ -55,117 +54,132 @@ class RealisasiAnggaranKas extends Model
         'realisasi_sd_tw' => 'decimal:2',
         'persentase_total' => 'decimal:2',
         'persentase_realisasi' => 'decimal:2',
+        'jumlah_realisasi' => 'decimal:2',
+
+        // Tanggal
         'tanggal_realisasi_tw_1' => 'date',
         'tanggal_realisasi_tw_2' => 'date',
         'tanggal_realisasi_tw_3' => 'date',
         'tanggal_realisasi_tw_4' => 'date',
         'tanggal_realisasi' => 'date',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+
+        // Integer dan enum
+        'tahun' => 'integer',
+        'triwulan' => 'integer',
     ];
 
-    // Add appends to make accessors available when converting to array/JSON
+    protected $attributes = [
+        'rencana_tw_1' => '0.00',
+        'rencana_tw_2' => '0.00',
+        'rencana_tw_3' => '0.00',
+        'rencana_tw_4' => '0.00',
+        'realisasi_tw_1' => '0.00',
+        'realisasi_tw_2' => '0.00',
+        'realisasi_tw_3' => '0.00',
+        'realisasi_tw_4' => '0.00',
+        'realisasi_sd_tw' => '0.00',
+        'persentase_total' => '0.00',
+        'status' => 'pending',
+    ];
+
+    // Add appends to define computed attributes
     protected $appends = [
         'total_rencana',
         'total_realisasi',
-        'persentase_realisasi_calculated',
-        'persentase_realisasi_terhadap_pagu',
+        'total_rencana_formatted',
+        'total_realisasi_formatted',
+        'persentase_formatted',
         'status_color',
-        'status_text',
-        'triwulan_text'
+        'status_label',
+        'persentase_color',
     ];
 
-    /**
-     * Relationship to RencanaAnggaranKas
-     */
+    // Relationship
     public function rencanaAnggaranKas(): BelongsTo
     {
-        return $this->belongsTo(RencanaAnggaranKas::class, 'rencana_anggaran_kas_id');
+        return $this->belongsTo(RencanaAnggaranKas::class);
     }
 
-    /**
-     * Scope untuk filter berdasarkan tahun
-     */
-    public function scopeByYear(Builder $query, ?int $year = null): Builder
+    // Accessor untuk format currency Indonesia - Fixed type conversion
+    public function getRencanaTw1FormattedAttribute(): string
     {
-        $year = $year ?? YearContext::getActiveYear();
-        return $query->where('tahun', $year);
+        return 'Rp ' . number_format((float) $this->rencana_tw_1, 0, ',', '.');
     }
 
-    /**
-     * Scope untuk filter berdasarkan status
-     */
-    public function scopeByStatus(Builder $query, string $status): Builder
+    public function getRencanaTw2FormattedAttribute(): string
     {
-        return $query->where('status', $status);
+        return 'Rp ' . number_format((float) $this->rencana_tw_2, 0, ',', '.');
     }
 
-    /**
-     * Scope untuk filter berdasarkan triwulan
-     */
-    public function scopeByTriwulan(Builder $query, string $triwulan): Builder
+    public function getRencanaTw3FormattedAttribute(): string
     {
-        return $query->where('triwulan', $triwulan);
+        return 'Rp ' . number_format((float) $this->rencana_tw_3, 0, ',', '.');
     }
 
-    /**
-     * Accessor untuk mendapatkan total rencana
-     */
+    public function getRencanaTw4FormattedAttribute(): string
+    {
+        return 'Rp ' . number_format((float) $this->rencana_tw_4, 0, ',', '.');
+    }
+
+    public function getRealisasiTw1FormattedAttribute(): string
+    {
+        return 'Rp ' . number_format((float) $this->realisasi_tw_1, 0, ',', '.');
+    }
+
+    public function getRealisasiTw2FormattedAttribute(): string
+    {
+        return 'Rp ' . number_format((float) $this->realisasi_tw_2, 0, ',', '.');
+    }
+
+    public function getRealisasiTw3FormattedAttribute(): string
+    {
+        return 'Rp ' . number_format((float) $this->realisasi_tw_3, 0, ',', '.');
+    }
+
+    public function getRealisasiTw4FormattedAttribute(): string
+    {
+        return 'Rp ' . number_format((float) $this->realisasi_tw_4, 0, ',', '.');
+    }
+
+    // Computed attributes - Fixed with explicit type conversion
     public function getTotalRencanaAttribute(): float
     {
-        return ($this->rencana_tw_1 ?? 0) +
-            ($this->rencana_tw_2 ?? 0) +
-            ($this->rencana_tw_3 ?? 0) +
-            ($this->rencana_tw_4 ?? 0);
+        return (float) $this->rencana_tw_1 +
+            (float) $this->rencana_tw_2 +
+            (float) $this->rencana_tw_3 +
+            (float) $this->rencana_tw_4;
     }
 
-    /**
-     * Accessor untuk mendapatkan total realisasi
-     */
     public function getTotalRealisasiAttribute(): float
     {
-        return ($this->realisasi_tw_1 ?? 0) +
-            ($this->realisasi_tw_2 ?? 0) +
-            ($this->realisasi_tw_3 ?? 0) +
-            ($this->realisasi_tw_4 ?? 0);
+        return (float) $this->realisasi_tw_1 +
+            (float) $this->realisasi_tw_2 +
+            (float) $this->realisasi_tw_3 +
+            (float) $this->realisasi_tw_4;
     }
 
-    /**
-     * Accessor untuk mendapatkan persentase realisasi berdasarkan total rencana
-     */
-    public function getPersentaseRealisasiCalculatedAttribute(): float
+    public function getTotalRencanaFormattedAttribute(): string
     {
-        $totalRealisasi = $this->getTotalRealisasiAttribute();
-        $totalRencana = $this->getTotalRencanaAttribute();
-
-        if ($totalRencana > 0) {
-            return round(($totalRealisasi / $totalRencana) * 100, 2);
-        }
-
-        return 0;
+        return 'Rp ' . number_format($this->getTotalRencanaAttribute(), 0, ',', '.');
     }
 
-    /**
-     * Accessor untuk mendapatkan persentase realisasi terhadap pagu
-     */
-    public function getPersentaseRealisasiTerhadapPaguAttribute(): float
+    public function getTotalRealisasiFormattedAttribute(): string
     {
-        $totalRealisasi = $this->getTotalRealisasiAttribute();
-        $pagu = $this->rencanaAnggaranKas->jumlah_rencana ?? 0;
-
-        if ($pagu > 0) {
-            return round(($totalRealisasi / $pagu) * 100, 2);
-        }
-
-        return 0;
+        return 'Rp ' . number_format($this->getTotalRealisasiAttribute(), 0, ',', '.');
     }
 
-    /**
-     * Accessor untuk mendapatkan status badge color
-     */
+    public function getPersentaseFormattedAttribute(): string
+    {
+        return number_format((float) $this->persentase_total, 2) . '%';
+    }
+
+    // Status badge color helper
     public function getStatusColorAttribute(): string
     {
-        return match ($this->attributes['status'] ?? '') {
+        // Ensure status is not null before using match
+        $status = $this->attributes['status'] ?? 'pending';
+
+        return match ($status) {
             'pending' => 'secondary',
             'completed' => 'success',
             'cancelled' => 'danger',
@@ -173,183 +187,101 @@ class RealisasiAnggaranKas extends Model
         };
     }
 
-    /**
-     * Accessor untuk mendapatkan status text
-     */
-    public function getStatusTextAttribute(): string
+    public function getStatusLabelAttribute(): string
     {
-        return match ($this->attributes['status'] ?? '') {
+        // Ensure status is not null before using match
+        $status = $this->attributes['status'] ?? 'pending';
+
+        return match ($status) {
             'pending' => 'Pending',
             'completed' => 'Selesai',
             'cancelled' => 'Dibatalkan',
-            default => $this->attributes['status'] ?? '',
+            default => $status,
         };
     }
 
-    /**
-     * Accessor untuk mendapatkan triwulan text
-     */
-    public function getTriwulanTextAttribute(): string
+    // Percentage color helper for badge
+    public function getPersentaseColorAttribute(): string
     {
-        return match ($this->attributes['triwulan'] ?? '') {
-            '1' => 'Triwulan 1',
-            '2' => 'Triwulan 2',
-            '3' => 'Triwulan 3',
-            '4' => 'Triwulan 4',
-            default => $this->attributes['triwulan'] ?? '',
+        $persentase = (float) $this->persentase_total;
+        return match (true) {
+            $persentase >= 100 => 'success',
+            $persentase >= 75 => 'warning',
+            default => 'danger',
         };
     }
 
-    /**
-     * Boot method untuk auto-calculate values
-     */
+    // Scopes
+    public function scopeByYear(Builder $query, ?int $year = null): Builder
+    {
+        $year = $year ?? YearContext::getActiveYear();
+        return $query->where('tahun', $year);
+    }
+
+    public function scopeByStatus(Builder $query, string $status): Builder
+    {
+        return $query->where('status', $status);
+    }
+
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where('status', 'completed');
+    }
+
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('status', 'pending');
+    }
+
+    // Methods untuk kalkulasi - Fixed type safety
+    public function calculatePersentase(): void
+    {
+        $totalRencana = $this->getTotalRencanaAttribute();
+
+        if ($totalRencana > 0) {
+            $this->persentase_total = ($this->getTotalRealisasiAttribute() / $totalRencana) * 100;
+        } else {
+            $this->persentase_total = 0;
+        }
+    }
+
+    public function updateRealisasiSdTw(): void
+    {
+        $this->realisasi_sd_tw = $this->getTotalRealisasiAttribute();
+    }
+
+    // Boot method untuk auto-calculate
     protected static function boot()
     {
         parent::boot();
 
         static::saving(function ($model) {
-            // Auto-calculate total realisasi
-            $model->realisasi_sd_tw = ($model->realisasi_tw_1 ?? 0) +
-                ($model->realisasi_tw_2 ?? 0) +
-                ($model->realisasi_tw_3 ?? 0) +
-                ($model->realisasi_tw_4 ?? 0);
-
-            // Calculate total rencana
-            $totalRencana = ($model->rencana_tw_1 ?? 0) +
-                ($model->rencana_tw_2 ?? 0) +
-                ($model->rencana_tw_3 ?? 0) +
-                ($model->rencana_tw_4 ?? 0);
-
-            // Auto-calculate persentase berdasarkan total rencana
-            if ($totalRencana > 0) {
-                $model->persentase_total = round(($model->realisasi_sd_tw / $totalRencana) * 100, 2);
-                $model->persentase_realisasi = $model->persentase_total;
-            } else {
-                $model->persentase_total = 0;
-                $model->persentase_realisasi = 0;
-            }
-
-            // Set tahun from YearContext if not provided
-            if (empty($model->tahun)) {
-                $model->tahun = YearContext::getActiveYear();
-            }
+            $model->updateRealisasiSdTw();
+            $model->calculatePersentase();
         });
     }
 
-    /**
-     * Get formatted currency value
-     */
-    public function getFormattedRealisasi(string $field): string
+    // Validation rules
+    public static function validationRules(): array
     {
-        $value = $this->{$field} ?? 0;
-        return 'Rp ' . number_format($value, 0, ',', '.');
-    }
-
-    /**
-     * Get formatted currency value for rencana
-     */
-    public function getFormattedRencana(string $field): string
-    {
-        $value = $this->{$field} ?? 0;
-        return 'Rp ' . number_format($value, 0, ',', '.');
-    }
-
-    /**
-     * Check if realization is complete for a quarter
-     */
-    public function isQuarterComplete(int $quarter): bool
-    {
-        $field = "realisasi_tw_{$quarter}";
-        return !empty($this->{$field}) && $this->{$field} > 0;
-    }
-
-    /**
-     * Check if plan is set for a quarter
-     */
-    public function isQuarterPlanSet(int $quarter): bool
-    {
-        $field = "rencana_tw_{$quarter}";
-        return !empty($this->{$field}) && $this->{$field} > 0;
-    }
-
-    /**
-     * Get completion percentage for progress tracking
-     */
-    public function getCompletionPercentage(): float
-    {
-        $completedQuarters = 0;
-        for ($i = 1; $i <= 4; $i++) {
-            if ($this->isQuarterComplete($i)) {
-                $completedQuarters++;
-            }
-        }
-        return ($completedQuarters / 4) * 100;
-    }
-
-    /**
-     * Get planning percentage for progress tracking
-     */
-    public function getPlanningPercentage(): float
-    {
-        $plannedQuarters = 0;
-        for ($i = 1; $i <= 4; $i++) {
-            if ($this->isQuarterPlanSet($i)) {
-                $plannedQuarters++;
-            }
-        }
-        return ($plannedQuarters / 4) * 100;
-    }
-
-    /**
-     * Get variance between plan and realization for a quarter
-     */
-    public function getQuarterVariance(int $quarter): float
-    {
-        $rencanaField = "rencana_tw_{$quarter}";
-        $realisasiField = "realisasi_tw_{$quarter}";
-
-        $rencana = $this->{$rencanaField} ?? 0;
-        $realisasi = $this->{$realisasiField} ?? 0;
-
-        return $realisasi - $rencana;
-    }
-
-    /**
-     * Get variance percentage for a quarter
-     */
-    public function getQuarterVariancePercentage(int $quarter): float
-    {
-        $rencanaField = "rencana_tw_{$quarter}";
-        $realisasiField = "realisasi_tw_{$quarter}";
-
-        $rencana = $this->{$rencanaField} ?? 0;
-        $realisasi = $this->{$realisasiField} ?? 0;
-
-        if ($rencana > 0) {
-            return round((($realisasi - $rencana) / $rencana) * 100, 2);
-        }
-
-        return 0;
-    }
-
-    /**
-     * Get total variance between total plan and total realization
-     */
-    public function getTotalVariance(): float
-    {
-        return $this->getTotalRealisasiAttribute() - $this->getTotalRencanaAttribute();
-    }
-
-    /**
-     * Get total variance percentage
-     */
-    public function getTotalVariancePercentage(): float
-    {
-        $totalRencana = $this->getTotalRencanaAttribute();
-        if ($totalRencana > 0) {
-            return round((($this->getTotalRealisasiAttribute() - $totalRencana) / $totalRencana) * 100, 2);
-        }
-
-        return 0;
+        return [
+            'tahun' => ['required', 'integer', 'min:2020', 'max:2030'],
+            'rencana_anggaran_kas_id' => ['required', 'exists:rencana_anggaran_kas,id'],
+            'rencana_tw_1' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
+            'rencana_tw_2' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
+            'rencana_tw_3' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
+            'rencana_tw_4' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
+            'realisasi_tw_1' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'realisasi_tw_2' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'realisasi_tw_3' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'realisasi_tw_4' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'tanggal_realisasi_tw_1' => ['nullable', 'date'],
+            'tanggal_realisasi_tw_2' => ['nullable', 'date'],
+            'tanggal_realisasi_tw_3' => ['nullable', 'date'],
+            'tanggal_realisasi_tw_4' => ['nullable', 'date'],
+            'status' => ['required', 'in:pending,completed,cancelled'],
+            'deskripsi' => ['nullable', 'string', 'max:1000'],
+            'catatan_realisasi' => ['nullable', 'string', 'max:1000'],
+        ];
     }
 }

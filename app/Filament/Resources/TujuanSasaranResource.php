@@ -3,148 +3,237 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\TujuanSasaranResource\Pages;
-use App\Filament\Resources\TujuanSasaranResource\RelationManagers;
 use App\Models\Tujas;
-use App\Models\TujuanSasaran;
-use App\Services\YearContext;
-use App\Traits\HasYearFilter;
-use Carbon\Carbon;
-use Faker\Provider\Base;
+use App\Models\MasterTujuanSasaran;
+use App\Models\MasterSasaran;
 use Filament\Forms;
-use Filament\Forms\Components\Grid;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use PhpParser\Node\Stmt\Label;
-use Filament\Notifications\Notification;
+use Filament\Support\Enums\FontWeight;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 
-class TujuanSasaranResource extends BaseResource
+class TujuanSasaranResource extends Resource
 {
+    protected static bool $shouldRegisterNavigation = false;
     protected static ?string $model = Tujas::class;
-    protected static ?string $navigationGroup = 'Capaian Kinerja';
-    protected static ?string $title = 'Tujuan & Sasaran';
     protected static ?string $navigationLabel = 'Tujuan & Sasaran';
     protected static ?string $modelLabel = 'Tujuan & Sasaran';
     protected static ?string $pluralModelLabel = 'Tujuan & Sasaran';
-    use HasYearFilter;
-    // protected static function getYearColumn(): string
-    // {
-    //     return 'tahun'; // atau 'year' sesuai dengan struktur tabel
-    // }
-    private function canAccessQuarter(int $quarter): bool
-    {
-        $currentMonth = Carbon::now()->month;
-        return match ($quarter) {
-            1 => $currentMonth >= 1 && $currentMonth <= 3,
-            2 => $currentMonth >= 4 && $currentMonth <= 6,
-            3 => $currentMonth >= 7 && $currentMonth <= 9,
-            4 => $currentMonth >= 10 && $currentMonth <= 12,
-            default => false
-        };
-    }
+    protected static ?string $navigationGroup = 'Perencanaan';
+    protected static ?int $navigationSort = 5;
 
-    private function getQuarterMonths(int $quarter): string
-    {
-        return match ($quarter) {
-            1 => 'Januari - Maret',
-            2 => 'April - Juni',
-            3 => 'Juli - September',
-            4 => 'Oktober - Desember',
-            default => ''
-        };
-    }
-
-    private function isPastQuarter(int $quarter): bool
-    {
-        $currentMonth = Carbon::now()->month;
-        return match ($quarter) {
-            1 => $currentMonth > 3,
-            2 => $currentMonth > 6,
-            3 => $currentMonth > 9,
-            4 => false,
-            default => false
-        };
-    }
-    private function calculateTotalInModal(callable $set, callable $get): void
-    {
-        $tw1 = (float) $get('realisasi_tw_1') ?? 0;
-        $tw2 = (float) $get('realisasi_tw_2') ?? 0;
-        $tw3 = (float) $get('realisasi_tw_3') ?? 0;
-        $tw4 = (float) $get('realisasi_tw_4') ?? 0;
-
-        $total = $tw1 + $tw2 + $tw3 + $tw4;
-        $set('total_realisasi', $total);
-
-        if ($get('target') > 0) {
-            $persentase = ($total / $get('target')) * 100;
-            $set('persentase_preview', number_format($persentase, 2) . '%');
-        } else {
-            $set('persentase_preview', '0%');
-        }
-    }
-    use HasYearFilter;
-    protected static function getTableQuery(): Builder
-    {
-        return parent::getTableQuery()->where('tahun', YearContext::getActiveYear());
-    }
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes([
-                SoftDeletingScope::class,
-            ])
-            ->where('tahun', YearContext::getActiveYear());
-    }
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informasi Utama')
+                Forms\Components\Section::make('Informasi Dasar')
                     ->schema([
-                        Forms\Components\Grid::make(2)
-                            ->schema([
-                                Forms\Components\Textarea::make('tujuan')
-                                    ->label('Tujuan')
-                                    ->required()
-                                    ->rows(3)
-                                    ->columnSpanFull(),
-
-                                Forms\Components\Textarea::make('sasaran')
-                                    ->label('Sasaran')
-                                    ->required()
-                                    ->rows(3)
-                                    ->columnSpanFull(),
-
-                                Forms\Components\Textarea::make('indikator')
-                                    ->label('Indikator')
-                                    ->required()
-                                    ->rows(2)
-                                    ->columnSpanFull(),
-                            ]),
+                        Forms\Components\TextInput::make('tahun')
+                            ->label('Tahun')
+                            ->required()
+                            ->numeric()
+                            ->minValue(2020)
+                            ->maxValue(2030)
+                            ->default(date('Y'))
+                            ->columnSpanFull(),
                     ]),
 
-                Forms\Components\Section::make('Target & Satuan')
+                // SECTION 1: TUJUAN
+                Forms\Components\Section::make('TUJUAN')
+                    ->description('Pilih tujuan dan lengkapi informasi terkait')
                     ->schema([
+                        Forms\Components\Select::make('master_tujuan_sasaran_id')
+                            ->label('Pilih Tujuan')
+                            ->relationship('masterTujuanSasaran', 'tujuan')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, Get $get, $state) {
+                                // Reset tujuan when master changes
+                                $set('tujuan', '');
+                                $set('indikator_tujuan_text', '');
+
+                                // Auto-fill tujuan from master
+                                if ($state) {
+                                    $master = MasterTujuanSasaran::find($state);
+                                    if ($master) {
+                                        $set('tujuan', $master->tujuan);
+                                        $set('indikator_tujuan_text', $master->indikator ?? '');
+                                    }
+                                }
+                            }),
+                        Forms\Components\Hidden::make('tujuan'),
+
+                        Forms\Components\Select::make('indikator_tujuan_text')
+                            ->label('Indikator Tujuan')
+                            ->relationship('masterTujuanSasaran', 'indikator_tujuan')
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->visible(fn(Get $get): bool => filled($get('tujuan')))
+                            ->helperText('Indikator untuk mengukur pencapaian tujuan'),
+
                         Forms\Components\Grid::make(2)
                             ->schema([
-                                Forms\Components\TextInput::make('target')
-                                    ->label('Target')
+                                Forms\Components\TextInput::make('target_tujuan')
+                                    ->label('Target Tujuan')
                                     ->required()
                                     ->numeric()
                                     ->step(0.001)
-                                    ->prefix('📊'),
+                                    ->minValue(0)
+                                    ->default(0)
+                                    ->visible(fn(Get $get): bool => filled($get('indikator_tujuan_text'))),
 
-                                Forms\Components\TextInput::make('satuan')
-                                    ->label('Satuan')
+                                Forms\Components\TextInput::make('satuan_tujuan')
+                                    ->label('Satuan Tujuan')
                                     ->required()
-                                    ->maxLength(50)
-                                    ->placeholder('Contoh: Persen, Unit, Orang, dll')
-                                    ->prefix('📏'),
+                                    ->live()
+                                    ->placeholder('Contoh: %, unit, orang')
+                                    ->default('unit')
+                                    ->visible(fn(Get $get): bool => filled($get('indikator_tujuan_text'))),
                             ]),
                     ]),
+
+                // SECTION 2: SASARAN
+                Forms\Components\Section::make('SASARAN')
+                    ->description('Pilih sasaran dan lengkapi informasi terkait')
+                    ->schema([
+                        Forms\Components\Select::make('master_sasaran_id')
+                            ->label('Pilih Master Sasaran')
+                            ->relationship('masterSasaran', 'sasaran')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->visible(fn(Get $get): bool => filled($get('target_tujuan')) && filled($get('satuan_tujuan')))
+                            ->afterStateUpdated(function (Set $set, Get $get, $state) {
+                                // Reset sasaran when master changes
+                                $set('sasaran', '');
+                                $set('indikator_sasaran_text', '');
+
+                                // Auto-fill sasaran from master
+                                if ($state) {
+                                    $master = MasterSasaran::find($state);
+                                    if ($master) {
+                                        $set('sasaran', $master->sasaran);
+                                        $set('indikator_sasaran_text', $master->indikator ?? '');
+                                    }
+                                }
+                            }),
+
+                        Forms\Components\Hidden::make('sasaran'),
+
+                        Forms\Components\Select::make('indikator_sasaran_text')
+                            ->label('Indikator Sasaran')
+                            ->preload()
+                            ->relationship('masterSasaran', 'indikator_sasaran')
+                            ->required()
+                            ->live()
+                            ->visible(fn(Get $get): bool => filled($get('sasaran')))
+                            ->helperText('Indikator untuk mengukur pencapaian sasaran'),
+
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\TextInput::make('target_sasaran')
+                                    ->label('Target Sasaran')
+                                    ->required()
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0)
+                                    ->visible(fn(Get $get): bool => filled($get('indikator_sasaran_text'))),
+
+                                Forms\Components\TextInput::make('satuan_sasaran')
+                                    ->label('Satuan Sasaran')
+                                    ->required()
+                                    ->live()
+                                    ->placeholder('Contoh: %, unit, orang')
+                                    ->default('unit')
+                                    ->visible(fn(Get $get): bool => filled($get('indikator_sasaran_text'))),
+                            ]),
+                    ]),
+
+                // SECTION 3: REALISASI (Only for editing/updating)
+                Forms\Components\Section::make('Realisasi Tujuan')
+                    ->description('Data realisasi per triwulan - dapat diupdate oleh user')
+                    ->schema([
+                        Forms\Components\Grid::make(4)
+                            ->schema([
+                                Forms\Components\TextInput::make('realisasi_tujuan_tw_1')
+                                    ->label('TW 1')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+
+                                Forms\Components\TextInput::make('realisasi_tujuan_tw_2')
+                                    ->label('TW 2')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+
+                                Forms\Components\TextInput::make('realisasi_tujuan_tw_3')
+                                    ->label('TW 3')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+
+                                Forms\Components\TextInput::make('realisasi_tujuan_tw_4')
+                                    ->label('TW 4')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+                            ]),
+                    ])
+                    ->visible(fn($operation): bool => $operation === 'edit'),
+
+                Forms\Components\Section::make('Realisasi Sasaran')
+                    ->description('Data realisasi per triwulan - dapat diupdate oleh user')
+                    ->schema([
+                        Forms\Components\Grid::make(4)
+                            ->schema([
+                                Forms\Components\TextInput::make('realisasi_sasaran_tw_1')
+                                    ->label('TW 1')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+
+                                Forms\Components\TextInput::make('realisasi_sasaran_tw_2')
+                                    ->label('TW 2')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+
+                                Forms\Components\TextInput::make('realisasi_sasaran_tw_3')
+                                    ->label('TW 3')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+
+                                Forms\Components\TextInput::make('realisasi_sasaran_tw_4')
+                                    ->label('TW 4')
+                                    ->numeric()
+                                    ->step(0.001)
+                                    ->minValue(0)
+                                    ->default(0),
+                            ]),
+                    ])
+                    ->visible(fn($operation): bool => $operation === 'edit'),
             ]);
     }
 
@@ -152,367 +241,370 @@ class TujuanSasaranResource extends BaseResource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('tahun')
+                    ->label('Tahun')
+                    ->sortable()
+                    ->searchable(),
+
                 Tables\Columns\TextColumn::make('tujuan')
                     ->label('Tujuan')
-                    ->wrap()
-                    ->extraAttributes(['class' => 'compact-cell'])
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        return strlen($state) > 50 ? $state : null;
-                    })
                     ->searchable()
-                    ->sortable(),
+                    ->wrap()
+                    ->limit(50),
 
                 Tables\Columns\TextColumn::make('sasaran')
                     ->label('Sasaran')
+                    ->searchable()
                     ->wrap()
-                    ->extraAttributes(['class' => 'compact-cell'])
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        return strlen($state) > 50 ? $state : null;
-                    })
-                    ->searchable()
-                    ->sortable(),
+                    ->limit(50),
 
-                Tables\Columns\TextColumn::make('indikator')
-                    ->label('Indikator')
-                    ->limit(40)
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        return strlen($state) > 40 ? $state : null;
-                    })
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('target')
-                    ->label('Target')
-                    ->numeric(4)
+                Tables\Columns\TextColumn::make('target_tujuan')
+                    ->label('Target Tujuan')
+                    ->numeric(decimalPlaces: 3)
                     ->sortable()
-                    ->alignEnd(),
+                    ->formatStateUsing(fn($state, $record) => $state . ' ' . $record->satuan_tujuan),
 
-                Tables\Columns\TextColumn::make('satuan')
-                    ->label('Satuan')
-                    ->searchable()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('total_realisasi_tujuan')
+                    ->label('Realisasi Tujuan')
+                    ->numeric(decimalPlaces: 3)
+                    ->formatStateUsing(fn($state, $record) => $state . ' ' . $record->satuan_tujuan),
 
-                Tables\Columns\TextColumn::make('realisasi_tw_1')
-                    ->label('TW 1')
-                    ->numeric(2)
-                    ->sortable()
-                    ->alignEnd(),
-
-                Tables\Columns\TextColumn::make('realisasi_tw_2')
-                    ->label('TW 2')
-                    ->numeric(2)
-                    ->sortable()
-                    ->alignEnd(),
-
-                Tables\Columns\TextColumn::make('realisasi_tw_3')
-                    ->label('TW 3')
-                    ->numeric(2)
-                    ->sortable()
-                    ->alignEnd(),
-
-                Tables\Columns\TextColumn::make('realisasi_tw_4')
-                    ->label('TW 4')
-                    ->numeric(2)
-                    ->sortable()
-                    ->alignEnd(),
-
-                Tables\Columns\TextColumn::make('persentase_calculated')
-                    ->label('Pencapaian (%)')
-                    ->state(function (Tujas $record): float {
-                        $totalRealisasi = ($record->realisasi_tw_1 ?? 0) +
-                            ($record->realisasi_tw_2 ?? 0) +
-                            ($record->realisasi_tw_3 ?? 0) +
-                            ($record->realisasi_tw_4 ?? 0);
-
-                        return $record->target > 0 ? ($totalRealisasi / $record->target) * 100 : 0;
-                    })
-                    ->numeric(2)
+                Tables\Columns\TextColumn::make('persentase_tujuan_calculated')
+                    ->label('% Tujuan')
+                    ->numeric(decimalPlaces: 2)
                     ->suffix('%')
                     ->sortable()
-                    ->alignEnd()
-                    ->color(fn(string $state): string => match (true) {
-                        $state >= 100 => 'success',
-                        $state >= 75 => 'warning',
-                        default => 'danger',
-                    }),
+                    ->color(fn($record) => $record->status_tujuan_color),
+
+                Tables\Columns\BadgeColumn::make('status_tujuan_pencapaian')
+                    ->label('Status Tujuan')
+                    ->color(fn($record) => $record->status_tujuan_color),
+
+                Tables\Columns\TextColumn::make('target_sasaran')
+                    ->label('Target Sasaran')
+                    ->numeric(decimalPlaces: 3)
+                    ->sortable()
+                    ->formatStateUsing(fn($state, $record) => $state . ' ' . $record->satuan_sasaran)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('total_realisasi_sasaran')
+                    ->label('Realisasi Sasaran')
+                    ->numeric(decimalPlaces: 3)
+                    ->formatStateUsing(fn($state, $record) => $state . ' ' . $record->satuan_sasaran)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('persentase_sasaran_calculated')
+                    ->label('% Sasaran')
+                    ->numeric(decimalPlaces: 2)
+                    ->suffix('%')
+                    ->color(fn($record) => $record->status_sasaran_color)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\BadgeColumn::make('status_sasaran_pencapaian')
+                    ->label('Status Sasaran')
+                    ->color(fn($record) => $record->status_sasaran_color)
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Dibuat')
-                    ->dateTime('d/m/Y H:i')
+                    ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Diperbarui')
-                    ->dateTime('d/m/Y H:i')
+                    ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\TrashedFilter::make(),
-
-                Tables\Filters\SelectFilter::make('satuan')
-                    ->label('Satuan')
+                Tables\Filters\SelectFilter::make('tahun')
+                    ->label('Tahun')
                     ->options(function () {
-                        return Tujas::distinct('satuan')
-                            ->pluck('satuan', 'satuan')
-                            ->toArray();
+                        $years = range(date('Y') - 5, date('Y') + 2);
+                        return array_combine($years, $years);
                     }),
 
-                Tables\Filters\Filter::make('pencapaian_tinggi')
-                    ->label('Pencapaian ≥ 100%')
-                    ->query(fn(Builder $query): Builder => $query->whereRaw('
-                        (COALESCE(realisasi_tw_1, 0) + 
-                         COALESCE(realisasi_tw_2, 0) + 
-                         COALESCE(realisasi_tw_3, 0) + 
-                         COALESCE(realisasi_tw_4, 0)) / target * 100 >= 100
-                    ')),
+                Tables\Filters\SelectFilter::make('status_tujuan')
+                    ->label('Status Tujuan')
+                    ->options([
+                        'Tercapai' => 'Tercapai',
+                        'Baik' => 'Baik',
+                        'Cukup' => 'Cukup',
+                        'Kurang' => 'Kurang',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (!$data['value']) {
+                            return $query;
+                        }
 
-                Tables\Filters\Filter::make('pencapaian_rendah')
-                    ->label('Pencapaian < 75%')
-                    ->query(fn(Builder $query): Builder => $query->whereRaw('
-                        (COALESCE(realisasi_tw_1, 0) + 
-                         COALESCE(realisasi_tw_2, 0) + 
-                         COALESCE(realisasi_tw_3, 0) + 
-                         COALESCE(realisasi_tw_4, 0)) / target * 100 < 75
-                    ')),
-            ])
+                        return match ($data['value']) {
+                            'Tercapai' => $query->highAchievement(100),
+                            'Baik' => $query->achievementBetween(75, 99.99),
+                            'Cukup' => $query->achievementBetween(50, 74.99),
+                            'Kurang' => $query->lowAchievement(50),
+                            default => $query,
+                        };
+                    }),
+
+                Tables\Filters\Filter::make('high_achievement')
+                    ->label('Pencapaian Tinggi (≥100%)')
+                    ->query(fn(Builder $query): Builder => $query->highAchievement()),
+
+                Tables\Filters\Filter::make('low_achievement')
+                    ->label('Pencapaian Rendah (<50%)')
+                    ->query(fn(Builder $query): Builder => $query->lowAchievement()),
+
+                Tables\Filters\TrashedFilter::make(),
+            ], layout: FiltersLayout::AboveContent)
             ->actions([
-                Tables\Actions\Action::make('input_realisasi')
-                    ->label('')
-                    ->tooltip('Input Realisasi')
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
+
+                // Modal untuk update realisasi (untuk user biasa)
+                Tables\Actions\Action::make('update_realisasi')
+                    ->label('Update Realisasi')
                     ->icon('heroicon-o-pencil-square')
                     ->color('primary')
+                    ->modalHeading('Update Realisasi')
+                    ->modalDescription(fn($record) => "Update realisasi untuk: {$record->tujuan}")
+                    ->modalWidth('7xl')
                     ->form([
-                        Forms\Components\Section::make('Input Realisasi Triwulan')
-                            ->description('Masukkan realisasi untuk setiap triwulan')
+                        Forms\Components\Section::make('Realisasi Tujuan')
+                            ->description(fn($record) => "Target: " . number_format($record->target_tujuan, 3) . " " . $record->satuan_tujuan)
                             ->schema([
-                                Forms\Components\Placeholder::make('info')
-                                    ->label('Informasi Target')
-                                    ->content(function (Tujas $record): string {
-                                        return "Target: " . number_format((float) $record->target, 3) . " " . $record->satuan;
-                                    }),
-
-                                Forms\Components\Grid::make(2)
+                                Forms\Components\Grid::make(4)
                                     ->schema([
-                                        Forms\Components\TextInput::make('realisasi_tw_1')
-                                            ->label('Realisasi Triwulan 1')
+                                        Forms\Components\TextInput::make('realisasi_tujuan_tw_1')
+                                            ->label('TW 1')
                                             ->numeric()
                                             ->step(0.001)
-                                            ->prefix('1️⃣')
-                                            ->placeholder('0.00')
-                                            ->default(fn(Tujas $record) => $record->realisasi_tw_1)
-                                            ->reactive()
-                                            ->helperText(function (Tujas $record) {
-                                                $resource = new static();
-                                                if ($record->realisasi_tw_1 > 0) {
-                                                    return 'TW 1 sudah terkunci karena sudah diinput';
-                                                }
-                                                if (!$resource->canAccessQuarter(1) && $resource->isPastQuarter(1)) {
-                                                    return 'Periode TW 1 (' . $resource->getQuarterMonths(1) . ') sudah terlewat';
-                                                }
-                                                if (!$resource->canAccessQuarter(1)) {
-                                                    return 'TW 1 hanya dapat diisi pada periode ' . $resource->getQuarterMonths(1);
-                                                }
-                                                return 'Realisasi Triwulan 1 (' . $resource->getQuarterMonths(1) . ')';
-                                            })
-                                            ->disabled(function (Tujas $record) {
-                                                $resource = new static();
-                                                return $record->realisasi_tw_1 > 0 || !$resource->canAccessQuarter(1);
-                                            })
-                                            ->afterStateUpdated(function (callable $set, callable $get) {
-                                                $resource = new static();
-                                                $resource->calculateTotalInModal($set, $get);
-                                            }),
+                                            ->minValue(0),
 
-                                        Forms\Components\TextInput::make('realisasi_tw_2')
-                                            ->label('Realisasi Triwulan 2')
+                                        Forms\Components\TextInput::make('realisasi_tujuan_tw_2')
+                                            ->label('TW 2')
                                             ->numeric()
                                             ->step(0.001)
-                                            ->prefix('2️⃣')
-                                            ->placeholder('0.00')
-                                            ->default(fn(Tujas $record) => $record->realisasi_tw_2)
-                                            ->reactive()
-                                            ->helperText(function (Tujas $record) {
-                                                $resource = new static();
-                                                if ($record->realisasi_tw_2 > 0) {
-                                                    return 'TW 2 sudah terkunci karena sudah diinput';
-                                                }
-                                                if (!$resource->canAccessQuarter(2) && $resource->isPastQuarter(2)) {
-                                                    return 'Periode TW 2 (' . $resource->getQuarterMonths(2) . ') sudah terlewat';
-                                                }
-                                                if (!$resource->canAccessQuarter(2)) {
-                                                    return 'TW 2 hanya dapat diisi pada periode ' . $resource->getQuarterMonths(2);
-                                                }
-                                                return 'Realisasi Triwulan 2 (' . $resource->getQuarterMonths(2) . ')';
-                                            })
-                                            ->disabled(function (Tujas $record) {
-                                                $resource = new static();
-                                                return $record->realisasi_tw_2 > 0 || !$resource->canAccessQuarter(2);
-                                            })
-                                            ->afterStateUpdated(function (callable $set, callable $get) {
-                                                $resource = new static();
-                                                $resource->calculateTotalInModal($set, $get);
-                                            }),
+                                            ->minValue(0),
 
-                                        Forms\Components\TextInput::make('realisasi_tw_3')
-                                            ->label('Realisasi Triwulan 3')
+                                        Forms\Components\TextInput::make('realisasi_tujuan_tw_3')
+                                            ->label('TW 3')
                                             ->numeric()
                                             ->step(0.001)
-                                            ->prefix('3️⃣')
-                                            ->placeholder('0.00')
-                                            ->default(fn(Tujas $record) => $record->realisasi_tw_3)
-                                            ->reactive()
-                                            ->helperText(function (Tujas $record) {
-                                                $resource = new static();
-                                                if ($record->realisasi_tw_3 > 0) {
-                                                    return 'TW 3 sudah terkunci karena sudah diinput';
-                                                }
-                                                if (!$resource->canAccessQuarter(3) && $resource->isPastQuarter(3)) {
-                                                    return 'Periode TW 3 (' . $resource->getQuarterMonths(3) . ') sudah terlewat';
-                                                }
-                                                if (!$resource->canAccessQuarter(3)) {
-                                                    return 'TW 3 hanya dapat diisi pada periode ' . $resource->getQuarterMonths(3);
-                                                }
-                                                return 'Realisasi Triwulan 3 (' . $resource->getQuarterMonths(3) . ')';
-                                            })
-                                            ->disabled(function (Tujas $record) {
-                                                $resource = new static();
-                                                return $record->realisasi_tw_3 > 0 || !$resource->canAccessQuarter(3);
-                                            })
-                                            ->afterStateUpdated(function (callable $set, callable $get) {
-                                                $resource = new static();
-                                                $resource->calculateTotalInModal($set, $get);
-                                            }),
+                                            ->minValue(0),
 
-                                        Forms\Components\TextInput::make('realisasi_tw_4')
-                                            ->label('Realisasi Triwulan 4')
+                                        Forms\Components\TextInput::make('realisasi_tujuan_tw_4')
+                                            ->label('TW 4')
                                             ->numeric()
                                             ->step(0.001)
-                                            ->prefix('4️⃣')
-                                            ->placeholder('0.00')
-                                            ->default(fn(Tujas $record) => $record->realisasi_tw_4)
-                                            ->reactive()
-                                            ->helperText(function (Tujas $record) {
-                                                $resource = new static();
-                                                if ($record->realisasi_tw_4 > 0) {
-                                                    return 'TW 4 sudah terkunci karena sudah diinput';
-                                                }
-                                                if (!$resource->canAccessQuarter(4) && $resource->isPastQuarter(4)) {
-                                                    return 'Periode TW 4 (' . $resource->getQuarterMonths(4) . ') sudah terlewat';
-                                                }
-                                                if (!$resource->canAccessQuarter(4)) {
-                                                    return 'TW 4 hanya dapat diisi pada periode ' . $resource->getQuarterMonths(4);
-                                                }
-                                                return 'Realisasi Triwulan 4 (' . $resource->getQuarterMonths(4) . ')';
-                                            })
-                                            ->disabled(function (Tujas $record) {
-                                                $resource = new static();
-                                                return $record->realisasi_tw_4 > 0 || !$resource->canAccessQuarter(4);
-                                            })
-                                            ->afterStateUpdated(function (callable $set, callable $get) {
-                                                $resource = new static();
-                                                $resource->calculateTotalInModal($set, $get);
-                                            }),
+                                            ->minValue(0),
                                     ]),
-                                Forms\Components\Hidden::make('target')
-                                    ->default(fn(Tujas $record) => $record->target),
-                                Forms\Components\Grid::make(2)
-                                    ->schema([
-                                        Forms\Components\TextInput::make('total_realisasi')
-                                            ->label('Total Realisasi')
-                                            ->numeric()
-                                            ->disabled()
-                                            ->dehydrated(false)
-                                            ->prefix('📊')
-                                            ->default(function (Tujas $record) {
-                                                return ($record->realisasi_tw_1 ?? 0) +
-                                                    ($record->realisasi_tw_2 ?? 0) +
-                                                    ($record->realisasi_tw_3 ?? 0) +
-                                                    ($record->realisasi_tw_4 ?? 0);
-                                            }),
+                            ]),
 
-                                        Forms\Components\TextInput::make('persentase_preview')
-                                            ->label('Pencapaian (%)')
-                                            ->disabled()
-                                            ->dehydrated(false)
-                                            ->prefix('📈')
-                                            ->default(function (Tujas $record) {
-                                                $total = ($record->realisasi_tw_1 ?? 0) +
-                                                    ($record->realisasi_tw_2 ?? 0) +
-                                                    ($record->realisasi_tw_3 ?? 0) +
-                                                    ($record->realisasi_tw_4 ?? 0);
-                                                $persentase = $record->target > 0 ? ($total / $record->target) * 100 : 0;
-                                                return number_format($persentase, 2) . '%';
-                                            }),
+                        Forms\Components\Section::make('Realisasi Sasaran')
+                            ->description(fn($record) => "Target: " . number_format($record->target_sasaran, 3) . " " . $record->satuan_sasaran)
+                            ->schema([
+                                Forms\Components\Grid::make(4)
+                                    ->schema([
+                                        Forms\Components\TextInput::make('realisasi_sasaran_tw_1')
+                                            ->label('TW 1')
+                                            ->numeric()
+                                            ->step(0.001)
+                                            ->minValue(0),
+
+                                        Forms\Components\TextInput::make('realisasi_sasaran_tw_2')
+                                            ->label('TW 2')
+                                            ->numeric()
+                                            ->step(0.001)
+                                            ->minValue(0),
+
+                                        Forms\Components\TextInput::make('realisasi_sasaran_tw_3')
+                                            ->label('TW 3')
+                                            ->numeric()
+                                            ->step(0.001)
+                                            ->minValue(0),
+
+                                        Forms\Components\TextInput::make('realisasi_sasaran_tw_4')
+                                            ->label('TW 4')
+                                            ->numeric()
+                                            ->step(0.001)
+                                            ->minValue(0),
                                     ]),
                             ]),
                     ])
+                    ->fillForm(fn($record) => [
+                        'realisasi_tujuan_tw_1' => $record->realisasi_tujuan_tw_1,
+                        'realisasi_tujuan_tw_2' => $record->realisasi_tujuan_tw_2,
+                        'realisasi_tujuan_tw_3' => $record->realisasi_tujuan_tw_3,
+                        'realisasi_tujuan_tw_4' => $record->realisasi_tujuan_tw_4,
+                        'realisasi_sasaran_tw_1' => $record->realisasi_sasaran_tw_1,
+                        'realisasi_sasaran_tw_2' => $record->realisasi_sasaran_tw_2,
+                        'realisasi_sasaran_tw_3' => $record->realisasi_sasaran_tw_3,
+                        'realisasi_sasaran_tw_4' => $record->realisasi_sasaran_tw_4,
+                    ])
                     ->action(function (array $data, Tujas $record): void {
-                        $updateData = [];
-                        $resource = new static();
-                        if (isset($data['realisasi_tw_1']) && $record->realisasi_tw_1 <= 0 && $resource->canAccessQuarter(1)) {
-                            $updateData['realisasi_tw_1'] = $data['realisasi_tw_1'];
-                        }
-                        if (isset($data['realisasi_tw_2']) && $record->realisasi_tw_2 <= 0 && $resource->canAccessQuarter(2)) {
-                            $updateData['realisasi_tw_2'] = $data['realisasi_tw_2'];
-                        }
-                        if (isset($data['realisasi_tw_3']) && $record->realisasi_tw_3 <= 0 && $resource->canAccessQuarter(3)) {
-                            $updateData['realisasi_tw_3'] = $data['realisasi_tw_3'];
-                        }
-                        if (isset($data['realisasi_tw_4']) && $record->realisasi_tw_4 <= 0 && $resource->canAccessQuarter(4)) {
-                            $updateData['realisasi_tw_4'] = $data['realisasi_tw_4'];
-                        }
-
-                        if (!empty($updateData)) {
-                            $record->update($updateData);
-
-                            $totalRealisasi = ($record->fresh()->realisasi_tw_1 ?? 0) +
-                                ($record->fresh()->realisasi_tw_2 ?? 0) +
-                                ($record->fresh()->realisasi_tw_3 ?? 0) +
-                                ($record->fresh()->realisasi_tw_4 ?? 0);
-
-                            $persentase = $record->target > 0 ? ($totalRealisasi / $record->target) * 100 : 0;
-
-                            Notification::make()
-                                ->title('Realisasi berhasil disimpan!')
-                                ->body("Total Realisasi: " . number_format((float) $totalRealisasi, 3) . " " . $record->satuan . " | Pencapaian: " . number_format($persentase, 2) . "%")
-                                ->success()
-                                ->send();
-                        } else {
-                            Notification::make()
-                                ->title('Tidak ada perubahan')
-                                ->body('Semua field sudah terkunci atau di luar periode yang diizinkan')
-                                ->warning()
-                                ->send();
-                        }
+                        $record->update($data);
                     })
-                    ->modalWidth('2xl')
-                    ->modalSubmitActionLabel('Simpan Realisasi')
-                    ->modalCancelActionLabel('Batal')
-                    ->visible(function (Tujas $record) {
-                        $resource = new static();
-                        return ($record->realisasi_tw_1 <= 0 && $resource->canAccessQuarter(1)) ||
-                            ($record->realisasi_tw_2 <= 0 && $resource->canAccessQuarter(2)) ||
-                            ($record->realisasi_tw_3 <= 0 && $resource->canAccessQuarter(3)) ||
-                            ($record->realisasi_tw_4 <= 0 && $resource->canAccessQuarter(4)) ||
-                            ($record->realisasi_tw_1 > 0 || $record->realisasi_tw_2 > 0 ||
-                                $record->realisasi_tw_3 > 0 || $record->realisasi_tw_4 > 0);
-                    }),
+                    ->successNotificationTitle('Realisasi berhasil diupdate'),
 
-                Tables\Actions\DeleteAction::make()
-                    ->label(''),
+                Tables\Actions\Action::make('reset_realisasi')
+                    ->label('Reset Realisasi')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Reset Realisasi')
+                    ->modalDescription('Apakah Anda yakin ingin mengatur ulang semua realisasi ke 0?')
+                    ->action(fn(Tujas $record) => $record->resetRealisasi())
+                    ->successNotificationTitle('Realisasi berhasil direset'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\ForceDeleteBulkAction::make(),
                     Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\BulkAction::make('bulk_reset_realisasi')
+                        ->label('Reset Realisasi')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Reset Realisasi')
+                        ->modalDescription('Apakah Anda yakin ingin mengatur ulang semua realisasi yang dipilih ke 0?')
+                        ->action(function ($records) {
+                            foreach ($records as $record) {
+                                $record->resetRealisasi();
+                            }
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->successNotificationTitle('Realisasi berhasil direset'),
                 ]),
-            ])->defaultSort('created_at', 'desc');
+            ])
+            ->defaultSort('tahun', 'desc')
+            ->striped()
+            ->paginated([10, 25, 50, 100]);
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('Informasi Dasar')
+                    ->schema([
+                        Infolists\Components\Grid::make(2)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('tahun')
+                                    ->label('Tahun')
+                                    ->weight(FontWeight::Bold),
+
+                                Infolists\Components\TextEntry::make('masterTujuanSasaran.nama')
+                                    ->label('Master Tujuan Sasaran'),
+                            ]),
+
+                        Infolists\Components\TextEntry::make('tujuan')
+                            ->label('Tujuan')
+                            ->columnSpanFull(),
+
+                        Infolists\Components\TextEntry::make('sasaran')
+                            ->label('Sasaran')
+                            ->columnSpanFull(),
+
+                        Infolists\Components\Grid::make(2)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('indikator_tujuan_text')
+                                    ->label('Indikator Tujuan'),
+
+                                Infolists\Components\TextEntry::make('indikator_sasaran_text')
+                                    ->label('Indikator Sasaran'),
+                            ]),
+                    ]),
+
+                Infolists\Components\Section::make('Target & Realisasi Tujuan')
+                    ->schema([
+                        Infolists\Components\Grid::make(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('target_tujuan')
+                                    ->label('Target')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_tujuan),
+
+                                Infolists\Components\TextEntry::make('total_realisasi_tujuan')
+                                    ->label('Total Realisasi')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_tujuan),
+
+                                Infolists\Components\TextEntry::make('persentase_tujuan_calculated')
+                                    ->label('Persentase')
+                                    ->badge()
+                                    ->color(fn($record) => $record->status_tujuan_color)
+                                    ->formatStateUsing(fn($state) => number_format($state, 2) . '%'),
+                            ]),
+
+                        Infolists\Components\Grid::make(4)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('realisasi_tujuan_tw_1')
+                                    ->label('TW 1')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_tujuan),
+
+                                Infolists\Components\TextEntry::make('realisasi_tujuan_tw_2')
+                                    ->label('TW 2')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_tujuan),
+
+                                Infolists\Components\TextEntry::make('realisasi_tujuan_tw_3')
+                                    ->label('TW 3')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_tujuan),
+
+                                Infolists\Components\TextEntry::make('realisasi_tujuan_tw_4')
+                                    ->label('TW 4')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_tujuan),
+                            ]),
+
+                        Infolists\Components\TextEntry::make('status_tujuan_pencapaian')
+                            ->label('Status Pencapaian')
+                            ->badge()
+                            ->color(fn($record) => $record->status_tujuan_color),
+                    ]),
+
+                Infolists\Components\Section::make('Target & Realisasi Sasaran')
+                    ->schema([
+                        Infolists\Components\Grid::make(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('target_sasaran')
+                                    ->label('Target')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_sasaran),
+
+                                Infolists\Components\TextEntry::make('total_realisasi_sasaran')
+                                    ->label('Total Realisasi')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_sasaran),
+
+                                Infolists\Components\TextEntry::make('persentase_sasaran_calculated')
+                                    ->label('Persentase')
+                                    ->badge()
+                                    ->color(fn($record) => $record->status_sasaran_color)
+                                    ->formatStateUsing(fn($state) => number_format($state, 2) . '%'),
+                            ]),
+
+                        Infolists\Components\Grid::make(4)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('realisasi_sasaran_tw_1')
+                                    ->label('TW 1')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_sasaran),
+
+                                Infolists\Components\TextEntry::make('realisasi_sasaran_tw_2')
+                                    ->label('TW 2')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_sasaran),
+
+                                Infolists\Components\TextEntry::make('realisasi_sasaran_tw_3')
+                                    ->label('TW 3')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_sasaran),
+
+                                Infolists\Components\TextEntry::make('realisasi_sasaran_tw_4')
+                                    ->label('TW 4')
+                                    ->formatStateUsing(fn($state, $record) => number_format($state, 3) . ' ' . $record->satuan_sasaran),
+                            ]),
+
+                        Infolists\Components\TextEntry::make('status_sasaran_pencapaian')
+                            ->label('Status Pencapaian')
+                            ->badge()
+                            ->color(fn($record) => $record->status_sasaran_color),
+                    ]),
+            ]);
     }
 
     public static function getRelations(): array
@@ -529,6 +621,33 @@ class TujuanSasaranResource extends BaseResource
             'create' => Pages\CreateTujuanSasaran::route('/create'),
             'view' => Pages\ViewTujuanSasaran::route('/{record}'),
             'edit' => Pages\EditTujuanSasaran::route('/{record}/edit'),
+        ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with(['masterTujuanSasaran', 'masterSasaran']);
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['tujuan', 'sasaran', 'tahun', 'masterTujuanSasaran.nama', 'masterSasaran.nama'];
+    }
+
+    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): array
+    {
+        return [
+            'Tahun' => $record->tahun,
+            'Target Tujuan' => number_format($record->target_tujuan, 3) . ' ' . $record->satuan_tujuan,
+            'Status' => $record->status_tujuan_pencapaian,
         ];
     }
 }
