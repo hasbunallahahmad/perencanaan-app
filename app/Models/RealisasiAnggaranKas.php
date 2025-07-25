@@ -42,19 +42,19 @@ class RealisasiAnggaranKas extends Model
     ];
 
     protected $casts = [
-        // Data finansial menggunakan decimal untuk presisi tinggi
-        'rencana_tw_1' => 'decimal:2',
-        'rencana_tw_2' => 'decimal:2',
-        'rencana_tw_3' => 'decimal:2',
-        'rencana_tw_4' => 'decimal:2',
-        'realisasi_tw_1' => 'decimal:2',
-        'realisasi_tw_2' => 'decimal:2',
-        'realisasi_tw_3' => 'decimal:2',
-        'realisasi_tw_4' => 'decimal:2',
-        'realisasi_sd_tw' => 'decimal:2',
-        'persentase_total' => 'decimal:2',
-        'persentase_realisasi' => 'decimal:2',
-        'jumlah_realisasi' => 'decimal:2',
+        // PERBAIKAN: Gunakan float untuk input form yang lebih mudah
+        'rencana_tw_1' => 'float',
+        'rencana_tw_2' => 'float',
+        'rencana_tw_3' => 'float',
+        'rencana_tw_4' => 'float',
+        'realisasi_tw_1' => 'float',
+        'realisasi_tw_2' => 'float',
+        'realisasi_tw_3' => 'float',
+        'realisasi_tw_4' => 'float',
+        'realisasi_sd_tw' => 'float',
+        'persentase_total' => 'float',
+        'persentase_realisasi' => 'float',
+        'jumlah_realisasi' => 'float',
 
         // Tanggal
         'tanggal_realisasi_tw_1' => 'date',
@@ -69,16 +69,16 @@ class RealisasiAnggaranKas extends Model
     ];
 
     protected $attributes = [
-        'rencana_tw_1' => '0.00',
-        'rencana_tw_2' => '0.00',
-        'rencana_tw_3' => '0.00',
-        'rencana_tw_4' => '0.00',
-        'realisasi_tw_1' => '0.00',
-        'realisasi_tw_2' => '0.00',
-        'realisasi_tw_3' => '0.00',
-        'realisasi_tw_4' => '0.00',
-        'realisasi_sd_tw' => '0.00',
-        'persentase_total' => '0.00',
+        'rencana_tw_1' => 0,
+        'rencana_tw_2' => 0,
+        'rencana_tw_3' => 0,
+        'rencana_tw_4' => 0,
+        'realisasi_tw_1' => 0,
+        'realisasi_tw_2' => 0,
+        'realisasi_tw_3' => 0,
+        'realisasi_tw_4' => 0,
+        'realisasi_sd_tw' => 0,
+        'persentase_total' => 0,
         'status' => 'pending',
     ];
 
@@ -100,62 +100,57 @@ class RealisasiAnggaranKas extends Model
         return $this->belongsTo(RencanaAnggaranKas::class);
     }
 
-    // Accessor untuk format currency Indonesia - Fixed type conversion
+    // PERBAIKAN: Pisahkan accessor untuk format dengan field asli
+    // Accessor untuk format currency Indonesia
     public function getRencanaTw1FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->rencana_tw_1, 0, ',', '.');
+        return 'Rp ' . number_format($this->rencana_tw_1, 0, ',', '.');
     }
 
     public function getRencanaTw2FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->rencana_tw_2, 0, ',', '.');
+        return 'Rp ' . number_format($this->rencana_tw_2, 0, ',', '.');
     }
 
     public function getRencanaTw3FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->rencana_tw_3, 0, ',', '.');
+        return 'Rp ' . number_format($this->rencana_tw_3, 0, ',', '.');
     }
 
     public function getRencanaTw4FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->rencana_tw_4, 0, ',', '.');
+        return 'Rp ' . number_format($this->rencana_tw_4, 0, ',', '.');
     }
 
     public function getRealisasiTw1FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->realisasi_tw_1, 0, ',', '.');
+        return 'Rp ' . number_format($this->realisasi_tw_1, 0, ',', '.');
     }
 
     public function getRealisasiTw2FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->realisasi_tw_2, 0, ',', '.');
+        return 'Rp ' . number_format($this->realisasi_tw_2, 0, ',', '.');
     }
 
     public function getRealisasiTw3FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->realisasi_tw_3, 0, ',', '.');
+        return 'Rp ' . number_format($this->realisasi_tw_3, 0, ',', '.');
     }
 
     public function getRealisasiTw4FormattedAttribute(): string
     {
-        return 'Rp ' . number_format((float) $this->realisasi_tw_4, 0, ',', '.');
+        return 'Rp ' . number_format($this->realisasi_tw_4, 0, ',', '.');
     }
 
-    // Computed attributes - Fixed with explicit type conversion
+    // Computed attributes
     public function getTotalRencanaAttribute(): float
     {
-        return (float) $this->rencana_tw_1 +
-            (float) $this->rencana_tw_2 +
-            (float) $this->rencana_tw_3 +
-            (float) $this->rencana_tw_4;
+        return $this->rencana_tw_1 + $this->rencana_tw_2 + $this->rencana_tw_3 + $this->rencana_tw_4;
     }
 
     public function getTotalRealisasiAttribute(): float
     {
-        return (float) $this->realisasi_tw_1 +
-            (float) $this->realisasi_tw_2 +
-            (float) $this->realisasi_tw_3 +
-            (float) $this->realisasi_tw_4;
+        return $this->realisasi_tw_1 + $this->realisasi_tw_2 + $this->realisasi_tw_3 + $this->realisasi_tw_4;
     }
 
     public function getTotalRencanaFormattedAttribute(): string
@@ -170,13 +165,12 @@ class RealisasiAnggaranKas extends Model
 
     public function getPersentaseFormattedAttribute(): string
     {
-        return number_format((float) $this->persentase_total, 2) . '%';
+        return number_format($this->persentase_total, 2) . '%';
     }
 
     // Status badge color helper
     public function getStatusColorAttribute(): string
     {
-        // Ensure status is not null before using match
         $status = $this->attributes['status'] ?? 'pending';
 
         return match ($status) {
@@ -189,7 +183,6 @@ class RealisasiAnggaranKas extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        // Ensure status is not null before using match
         $status = $this->attributes['status'] ?? 'pending';
 
         return match ($status) {
@@ -203,7 +196,7 @@ class RealisasiAnggaranKas extends Model
     // Percentage color helper for badge
     public function getPersentaseColorAttribute(): string
     {
-        $persentase = (float) $this->persentase_total;
+        $persentase = $this->persentase_total;
         return match (true) {
             $persentase >= 100 => 'success',
             $persentase >= 75 => 'warning',
@@ -233,7 +226,7 @@ class RealisasiAnggaranKas extends Model
         return $query->where('status', 'pending');
     }
 
-    // Methods untuk kalkulasi - Fixed type safety
+    // Methods untuk kalkulasi
     public function calculatePersentase(): void
     {
         $totalRencana = $this->getTotalRencanaAttribute();
@@ -259,6 +252,21 @@ class RealisasiAnggaranKas extends Model
             $model->updateRealisasiSdTw();
             $model->calculatePersentase();
         });
+    }
+
+    // PERBAIKAN: Tambahkan method untuk mendapatkan nilai raw tanpa format
+    public function getRawValues(): array
+    {
+        return [
+            'rencana_tw_1' => (float) $this->attributes['rencana_tw_1'] ?? 0,
+            'rencana_tw_2' => (float) $this->attributes['rencana_tw_2'] ?? 0,
+            'rencana_tw_3' => (float) $this->attributes['rencana_tw_3'] ?? 0,
+            'rencana_tw_4' => (float) $this->attributes['rencana_tw_4'] ?? 0,
+            'realisasi_tw_1' => (float) $this->attributes['realisasi_tw_1'] ?? 0,
+            'realisasi_tw_2' => (float) $this->attributes['realisasi_tw_2'] ?? 0,
+            'realisasi_tw_3' => (float) $this->attributes['realisasi_tw_3'] ?? 0,
+            'realisasi_tw_4' => (float) $this->attributes['realisasi_tw_4'] ?? 0,
+        ];
     }
 
     // Validation rules

@@ -97,7 +97,12 @@ class RealisasiAnggaranKasResource extends Resource
                                     ->dehydrated(false)
                                     ->prefix('Rp')
                                     ->live()
-                                    ->formatStateUsing(function ($state, $get) {
+                                    ->formatStateUsing(function ($state, $get, $record) {
+                                        // PERBAIKAN: Gunakan data dari record saat edit
+                                        if ($record && $record->rencanaAnggaranKas) {
+                                            return number_format($record->rencanaAnggaranKas->jumlah_rencana, 0, ',', '.');
+                                        }
+
                                         $rencanaId = $get('rencana_anggaran_kas_id');
                                         if ($rencanaId) {
                                             $rencana = RencanaAnggaranKas::find($rencanaId);
@@ -107,7 +112,6 @@ class RealisasiAnggaranKasResource extends Resource
                                         }
                                         return $state ? number_format((float)$state, 0, ',', '.') : '0';
                                     }),
-
                             ]),
                     ]),
 
@@ -115,7 +119,7 @@ class RealisasiAnggaranKasResource extends Resource
                     ->schema([
                         Grid::make(4)
                             ->schema([
-                                // Triwulan 1
+                                // PERBAIKAN: Pastikan nilai dari database dimuat dengan benar
                                 Section::make('Triwulan 1')
                                     ->schema([
                                         TextInput::make('rencana_tw_1')
@@ -125,6 +129,10 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->default(0)
                                             ->required()
                                             ->reactive()
+                                            // PERBAIKAN: Format nilai saat dimuat
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),
@@ -135,6 +143,10 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->prefix('Rp')
                                             ->default(0)
                                             ->reactive()
+                                            // PERBAIKAN: Format nilai saat dimuat
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),
@@ -144,7 +156,7 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->default(now()),
                                     ]),
 
-                                // Triwulan 2
+                                // Ulangi untuk TW 2, 3, 4 dengan pola yang sama
                                 Section::make('Triwulan 2')
                                     ->schema([
                                         TextInput::make('rencana_tw_2')
@@ -154,6 +166,9 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->default(0)
                                             ->required()
                                             ->reactive()
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),
@@ -164,6 +179,9 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->prefix('Rp')
                                             ->default(0)
                                             ->reactive()
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),
@@ -173,7 +191,6 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->default(now()),
                                     ]),
 
-                                // Triwulan 3
                                 Section::make('Triwulan 3')
                                     ->schema([
                                         TextInput::make('rencana_tw_3')
@@ -183,6 +200,9 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->default(0)
                                             ->required()
                                             ->reactive()
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),
@@ -193,6 +213,9 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->prefix('Rp')
                                             ->default(0)
                                             ->reactive()
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),
@@ -202,7 +225,6 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->default(now()),
                                     ]),
 
-                                // Triwulan 4
                                 Section::make('Triwulan 4')
                                     ->schema([
                                         TextInput::make('rencana_tw_4')
@@ -212,6 +234,9 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->default(0)
                                             ->required()
                                             ->reactive()
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),
@@ -222,6 +247,9 @@ class RealisasiAnggaranKasResource extends Resource
                                             ->prefix('Rp')
                                             ->default(0)
                                             ->reactive()
+                                            ->formatStateUsing(function ($state) {
+                                                return $state ? (float)$state : 0;
+                                            })
                                             ->afterStateUpdated(function (callable $get, callable $set, $state) {
                                                 static::calculatePercentage($get, $set);
                                             }),

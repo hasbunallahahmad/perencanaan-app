@@ -20,7 +20,10 @@ class Realisasi extends Model
         'nama_aksi',
         'tanggal',
         'tempat',
-        'narasumber',
+        'jumlah_dprd',
+        'jumlah_kepala_dinas',
+        'jumlah_kepala_daerah',
+        'total_narasumber',
         'laki_laki',
         'perempuan',
         'jumlah_peserta',
@@ -33,6 +36,10 @@ class Realisasi extends Model
 
     protected $casts = [
         'tanggal' => 'date',
+        'jumlah_dprd' => 'integer',
+        'jumlah_kepala_dinas' => 'integer',
+        'jumlah_kepala_daerah' => 'integer',
+        'total_narasumber' => 'integer',
         'laki_laki' => 'integer',
         'perempuan' => 'integer',
         'jumlah_peserta' => 'integer',
@@ -77,7 +84,24 @@ class Realisasi extends Model
         }
         return null;
     }
+    public function getNarasumberDetailAttribute(): array
+    {
+        $detail = [];
 
+        if ($this->jumlah_dprd > 0) {
+            $detail[] = $this->jumlah_dprd . ' DPRD';
+        }
+
+        if ($this->jumlah_kepala_dinas > 0) {
+            $detail[] = $this->jumlah_kepala_dinas . ' Kepala Dinas';
+        }
+
+        if ($this->jumlah_kepala_daerah > 0) {
+            $detail[] = $this->jumlah_kepala_daerah . ' Kepala Daerah';
+        }
+
+        return $detail;
+    }
     // Accessor untuk mendapatkan nama aksi dari rencana_aksi_list
     public function getNamaAksiFromListAttribute()
     {
@@ -132,6 +156,13 @@ class Realisasi extends Model
 
         static::addGlobalScope('yearContext', function (Builder $builder) {
             $builder->where('tahun', YearContext::getActiveYear());
+        });
+        // Auto-calculate total_narasumber before saving
+        static::saving(function ($model) {
+            $model->total_narasumber =
+                $model->jumlah_dprd +
+                $model->jumlah_kepala_dinas +
+                $model->jumlah_kepala_daerah;
         });
     }
 

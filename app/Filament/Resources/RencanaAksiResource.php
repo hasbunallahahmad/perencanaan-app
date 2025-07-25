@@ -85,7 +85,7 @@ class RencanaAksiResource extends Resource
                                                 ->preload()
                                                 ->live()
                                                 ->afterStateUpdated(function (Set $set) {
-                                                    $set('id_program', null);
+                                                    // $set('id_program', null);
                                                     $set('id_kegiatan', null);
                                                     $set('id_sub_kegiatan', null);
                                                 })
@@ -93,13 +93,9 @@ class RencanaAksiResource extends Resource
 
                                             Select::make('id_program')
                                                 ->label('Program')
-                                                ->options(function (Get $get) {
-                                                    $bidangId = $get('bidang_id');
-                                                    if (!$bidangId) {
-                                                        return [];
-                                                    }
-                                                    return Program::where('organisasi_id', $bidangId)
-                                                        ->where('tahun', YearContext::getActiveYear())
+                                                ->options(function () {
+                                                    // Ambil seluruh program tanpa filter bidang
+                                                    return Program::where('tahun', YearContext::getActiveYear())
                                                         ->distinct()
                                                         ->orderBy('nama_program')
                                                         ->pluck('nama_program', 'id_program');
@@ -109,6 +105,7 @@ class RencanaAksiResource extends Resource
                                                 ->preload()
                                                 ->live()
                                                 ->afterStateUpdated(function (Set $set) {
+                                                    // Reset kegiatan dan sub kegiatan ketika program berubah
                                                     $set('id_kegiatan', null);
                                                     $set('id_sub_kegiatan', null);
                                                 })
@@ -129,42 +126,41 @@ class RencanaAksiResource extends Resource
                                         ->schema([
                                             Select::make('id_kegiatan')
                                                 ->label('Kegiatan')
-                                                ->options(function (Get $get) {
-                                                    $programId = $get('id_program');
-                                                    if (!$programId) {
-                                                        return [];
-                                                    }
-                                                    return Kegiatan::where('id_program', $programId)
-                                                        ->where('tahun', YearContext::getActiveYear())
+                                                ->getSearchResultsUsing(function (string $search) {
+                                                    return Kegiatan::where('tahun', YearContext::getActiveYear())
+                                                        ->where('nama_kegiatan', 'like', "%{$search}%")
                                                         ->distinct()
                                                         ->orderBy('nama_kegiatan')
+                                                        ->limit(50) // Batasi hasil untuk performa
                                                         ->pluck('nama_kegiatan', 'id_kegiatan');
+                                                })
+                                                ->getOptionLabelUsing(function ($value) {
+                                                    return Kegiatan::where('id_kegiatan', $value)->value('nama_kegiatan');
                                                 })
                                                 ->required()
                                                 ->searchable()
-                                                ->preload()
                                                 ->live()
                                                 ->afterStateUpdated(function (Set $set) {
+                                                    // Hanya reset sub kegiatan
                                                     $set('id_sub_kegiatan', null);
                                                 })
                                                 ->columnSpan(1),
 
                                             Select::make('id_sub_kegiatan')
                                                 ->label('Sub Kegiatan')
-                                                ->options(function (Get $get) {
-                                                    $kegiatanId = $get('id_kegiatan');
-                                                    if (!$kegiatanId) {
-                                                        return [];
-                                                    }
-                                                    return SubKegiatan::where('id_kegiatan', $kegiatanId)
-                                                        ->where('tahun', YearContext::getActiveYear())
+                                                ->getSearchResultsUsing(function (string $search) {
+                                                    return SubKegiatan::where('tahun', YearContext::getActiveYear())
+                                                        ->where('nama_sub_kegiatan', 'like', "%{$search}%")
                                                         ->distinct()
                                                         ->orderBy('nama_sub_kegiatan')
+                                                        ->limit(50) // Batasi hasil untuk performa
                                                         ->pluck('nama_sub_kegiatan', 'id_sub_kegiatan');
+                                                })
+                                                ->getOptionLabelUsing(function ($value) {
+                                                    return SubKegiatan::where('id_sub_kegiatan', $value)->value('nama_sub_kegiatan');
                                                 })
                                                 ->required()
                                                 ->searchable()
-                                                ->preload()
                                                 ->columnSpan(1),
                                         ]),
                                 ])

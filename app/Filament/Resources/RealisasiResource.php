@@ -136,7 +136,6 @@ class RealisasiResource extends Resource
                                     ->searchable()
                                     ->live()
                                     ->afterStateUpdated(function ($state, Get $get, Set $set) {
-                                        // Auto-fill nama_aksi based on selected index
                                         if ($state !== null) {
                                             $rencanaAksiId = $get('rencana_aksi_id');
                                             if ($rencanaAksiId) {
@@ -146,6 +145,9 @@ class RealisasiResource extends Resource
                                                 }
                                             }
                                         }
+                                        $set('jumlah_dprd', 0);
+                                        $set('jumlah_kepala_dinas', 0);
+                                        $set('jumlah_kepala_daerah', 0);
                                     })
                                     ->columnSpan(2),
 
@@ -165,12 +167,77 @@ class RealisasiResource extends Resource
                                     ->maxLength(255)
                                     ->columnSpan(1),
 
-                                TextInput::make('narasumber')
-                                    ->label('Narasumber')
-                                    ->required()
-                                    ->maxLength(255)
-                                    ->columnSpan(2),
+                                // TextInput::make('narasumber')
+                                //     ->label('Narasumber')
+                                //     ->required()
+                                //     ->maxLength(255)
+                                //     ->columnSpan(2),
                             ]),
+                    ]),
+                Section::make('Jumlah Narasumber')
+                    ->description('Masukkan jumlah narasumber berdasarkan jenis')
+                    ->schema([
+                        Grid::make(3)
+                            ->schema([
+                                TextInput::make('jumlah_dprd')
+                                    ->label('Jumlah DPRD')
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->maxValue(100)
+                                    ->default(0)
+                                    ->suffix('orang')
+                                    ->live()
+                                    ->columnSpan(1),
+
+                                TextInput::make('jumlah_kepala_dinas')
+                                    ->label('Jumlah Kepala Dinas')
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->maxValue(50)
+                                    ->default(0)
+                                    ->suffix('orang')
+                                    ->live()
+                                    ->columnSpan(1),
+
+                                TextInput::make('jumlah_kepala_daerah')
+                                    ->label('Jumlah Kepala Daerah')
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->maxValue(10)
+                                    ->default(0)
+                                    ->suffix('orang')
+                                    ->live()
+                                    ->columnSpan(1),
+                            ]),
+                        Placeholder::make('total_preview')
+                            ->label('Total Narasumber')
+                            ->content(function (Get $get) {
+                                $dprd = (int) ($get('jumlah_dprd') ?? 0);
+                                $kepalaDinas = (int) ($get('jumlah_kepala_dinas') ?? 0);
+                                $kepalaDaerah = (int) ($get('jumlah_kepala_daerah') ?? 0);
+
+                                $total = $dprd + $kepalaDinas + $kepalaDaerah;
+
+                                if ($total === 0) {
+                                    return new HtmlString('<span class="text-gray-500">Belum ada narasumber yang diinput</span>');
+                                }
+
+                                $details = [];
+                                if ($dprd > 0) $details[] = $dprd . ' DPRD';
+                                if ($kepalaDinas > 0) $details[] = $kepalaDinas . ' Kepala Dinas';
+                                if ($kepalaDaerah > 0) $details[] = $kepalaDaerah . ' Kepala Daerah';
+
+                                $detailText = implode(', ', $details);
+
+                                return new HtmlString(
+                                    '<div class="p-4 bg-blue-50 rounded-lg border border-blue-200">' .
+                                        '<div class="font-semibold text-blue-900 text-lg">Total: ' . $total . ' orang</div>' .
+                                        '<div class="text-sm text-blue-700 mt-1">Detail: ' . $detailText . '</div>' .
+                                        '</div>'
+                                );
+                            })
+                            ->live()
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Data Peserta')
@@ -281,6 +348,7 @@ class RealisasiResource extends Resource
                     ->label('Kegiatan')
                     ->sortable()
                     ->searchable()
+                    ->wrap()
                     ->limit(50)
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
                         $state = $column->getState();
@@ -290,6 +358,7 @@ class RealisasiResource extends Resource
                 Tables\Columns\TextColumn::make('nama_aksi')
                     ->label('Nama Aksi')
                     ->searchable()
+                    ->wrap()
                     ->limit(60)
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
                         $state = $column->getState();
@@ -311,14 +380,41 @@ class RealisasiResource extends Resource
                         return strlen($state) > 30 ? $state : null;
                     }),
 
-                Tables\Columns\TextColumn::make('narasumber')
-                    ->label('Narasumber')
-                    ->searchable()
-                    ->limit(30)
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        return strlen($state) > 30 ? $state : null;
-                    }),
+                Tables\Columns\TextColumn::make('total_narasumber')
+                    ->label('Total Narasumber')
+                    ->suffix(' orang')
+                    ->sortable()
+                    ->alignCenter(),
+
+                Tables\Columns\TextColumn::make('narasumber_detail')
+                    ->label('Detail Narasumber')
+                    ->getStateUsing(function ($record) {
+                        return implode(', ', $record->narasumber_detail);
+                    })
+                    ->wrap()
+                    ->toggleable(),
+
+                // Badge untuk jenis narasumber
+                Tables\Columns\TextColumn::make('dprd_badge')
+                    ->label('DPRD')
+                    ->getStateUsing(fn($record) => $record->jumlah_dprd > 0 ? $record->jumlah_dprd : null)
+                    ->badge()
+                    ->color('primary')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('kepala_dinas_badge')
+                    ->label('Kepala Dinas')
+                    ->getStateUsing(fn($record) => $record->jumlah_kepala_dinas > 0 ? $record->jumlah_kepala_dinas : null)
+                    ->badge()
+                    ->color('success')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('kepala_daerah_badge')
+                    ->label('Kepala Daerah')
+                    ->getStateUsing(fn($record) => $record->jumlah_kepala_daerah > 0 ? $record->jumlah_kepala_daerah : null)
+                    ->badge()
+                    ->color('warning')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('jumlah_peserta')
                     ->label('Peserta')
