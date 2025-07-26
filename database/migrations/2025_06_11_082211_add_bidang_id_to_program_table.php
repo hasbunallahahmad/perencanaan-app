@@ -6,21 +6,32 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
     {
         Schema::table('program', function (Blueprint $table) {
-            $table->foreignId('bidang_id')
+            $table->unsignedBigInteger('bidang_id')
                 ->nullable()
-                ->after('id_program')
-                ->constrained('bidang')
-                ->onDelete('set null'); // or 'cascade' based on your business logic
+                ->after('id_program');
+
+            $table->foreign('bidang_id', 'fk_program_bidang')
+                ->references('id')
+                ->on('bidangs') // Correctly reference 'bidangs' table
+                ->onDelete('set null');
         });
     }
 
-    public function down()
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
     {
         Schema::table('program', function (Blueprint $table) {
-            $table->dropForeign(['bidang_id']);
+            // Drop foreign key constraint first
+            $table->dropForeign('fk_program_bidang');
+            // Then drop the column
             $table->dropColumn('bidang_id');
         });
     }

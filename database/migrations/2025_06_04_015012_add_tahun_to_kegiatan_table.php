@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::table('kegiatan', function (Blueprint $table) {
             $table->year('tahun')->default(2025)->after('id_kegiatan');
             $table->index(['tahun']);
-            $table->index(['tahun', 'organisasi_id']);
         });
     }
 
@@ -24,8 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('kegiatan', function (Blueprint $table) {
-            $table->dropIndex(['tahun', 'organisasi_id']);
-            $table->dropIndex(['tahun']);
+
             $table->dropColumn('tahun');
         });
     }

@@ -11,9 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('kegiatan', function (Blueprint $table) {
-            $table->year('tahun')->after('id_program')->default(2025)->index();
-        });
+        // Do nothing - column already exists with correct structure
+        if (!Schema::hasColumn('kegiatan', 'tahun')) {
+            Schema::table('kegiatan', function (Blueprint $table) {
+                $table->year('tahun')->after('id_program')->default(2025)->index();
+            });
+        }
     }
 
     /**

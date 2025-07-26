@@ -6,29 +6,41 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('kegiatan', function (Blueprint $table) {
-            // Hapus unique constraint lama pada kode_program
-            $table->dropUnique('kegiatan_kode_kegiatan_unique');
+            // Add tahun column if it doesn't exist
+            if (!Schema::hasColumn('kegiatan', 'tahun')) {
+                $table->year('tahun')->nullable()->after('kode_kegiatan');
+            }
+        });
 
-            // Buat unique constraint baru untuk kombinasi kode_program + tahun
+        Schema::table('kegiatan', function (Blueprint $table) {
+            // Drop existing unique constraint (try different possible names)
+            try {
+                $table->dropUnique(['kode_kegiatan']);
+            } catch (\Exception $e) {
+                // Try other possible constraint names
+                try {
+                    $table->dropUnique('kegiatan_kode_kegiatan_unique');
+                } catch (\Exception $e2) {
+                    // Constraint might not exist, continue
+                }
+            }
+
+            // Create composite unique constraint
             $table->unique(['kode_kegiatan', 'tahun'], 'kegiatan_kode_tahun_unique');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('kegiatan', function (Blueprint $table) {
-            // Rollback: hapus composite unique dan kembalikan unique pada kode_program
-            $table->dropUnique('kegiatan_kode_kegiatan_unique');
-            $table->unique('kode_kegiatan', 'kegiatan_kode_tahun_unique');
+            // Drop composite unique
+            $table->dropUnique('kegiatan_kode_tahun_unique');
+
+            // Restore single column unique
+            $table->unique('kode_kegiatan', 'kegiatan_kode_kegiatan_unique');
         });
     }
 };
