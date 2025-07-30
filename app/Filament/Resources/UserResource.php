@@ -326,10 +326,10 @@ class UserResource extends Resource
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
     }
-    public static function getNavigationBadge(): ?string
-    {
-        return Cache::remember('user_count_v2', 3600, function () {
-            return static::getModel()::count();
-        });
-    }
+    // public static function getNavigationBadge(): ?string
+    // {
+    //     return Cache::remember('user_count_v2', 3600, function () {
+    //         return static::getModel()::count();
+    //     });
+    // }
 }

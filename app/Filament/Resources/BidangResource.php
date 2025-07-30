@@ -131,12 +131,12 @@ class BidangResource extends Resource
             'edit' => Pages\EditBidang::route('/{record}/edit'),
         ];
     }
-    public static function getNavigationBadge(): ?string
-    {
-        return Cache::remember('bidang_count', 600, function () {
-            return static::getModel()::count();
-        });
-    }
+    // public static function getNavigationBadge(): ?string
+    // {
+    //     return Cache::remember('bidang_count', 600, function () {
+    //         return static::getModel()::count();
+    //     });
+    // }
     private static function getCachedOrganisasi(): array
     {
         return Cache::remember('organisasi_options', 3600, function () {

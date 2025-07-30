@@ -20,7 +20,10 @@ class MasterTujuanSasaranResource extends Resource
     protected static ?string $modelLabel = 'Master Tujuan ';
     protected static ?string $pluralModelLabel = 'Master Tujuan ';
     protected static ?int $navigationSort = 4;
-
+    public static function canAccess(): bool
+    {
+        return \Illuminate\Support\Facades\Auth::user()->hasRole('super_admin');
+    }
     public static function form(Form $form): Form
     {
         return $form

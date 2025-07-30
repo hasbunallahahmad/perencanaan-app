@@ -13,7 +13,7 @@ class BidangSeeder extends Seeder
         $bidangs = [
             [
                 'nama' => 'Sekretariat',
-                'kode' => 'SEKT',
+                'kode' => 'SEKRE',
                 'deskripsi' => 'Unit pelaksana tugas administrasi dan pelayanan teknis',
                 'organisasi_id' => 1,
                 'is_sekretariat' => 1,

@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use App\Observers\SeksiCacheObserver;
 use App\Services\CacheService;
 use Filament\Pages\Dashboard;
+use Illuminate\Support\Facades\View;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -49,6 +50,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Kegiatan::class, KegiatanPolicy::class);
         Gate::policy(SubKegiatan::class, SubKegiatanPolicy::class);
 
+        View::share('favicon', [
+            'icon' => asset('favicon.ico'),
+            'png32' => asset('favicon-32x32.png'),
+            'png16' => asset('favicon-16x16.png'),
+            'apple' => asset('apple-touch-icon.png'),
+        ]);
 
         RencanaAnggaranKas::observe(RencanaAnggaranKasObserver::class);
 

@@ -257,18 +257,18 @@ class SeksiResource extends Resource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        try {
-            $cacheKey = 'seksi_badge_count';
-            return Cache::remember($cacheKey, 600, function () {
-                return (string) Seksi::count();
-            });
-        } catch (\Exception $e) {
-            Log::warning('Failed to get cached seksi count: ' . $e->getMessage());
-            return null;
-        }
-    }
+    // public static function getNavigationBadge(): ?string
+    // {
+    //     try {
+    //         $cacheKey = 'seksi_badge_count';
+    //         return Cache::remember($cacheKey, 600, function () {
+    //             return (string) Seksi::count();
+    //         });
+    //     } catch (\Exception $e) {
+    //         Log::warning('Failed to get cached seksi count: ' . $e->getMessage());
+    //         return null;
+    //     }
+    // }
 
     public static function clearResourceCache(): void
     {

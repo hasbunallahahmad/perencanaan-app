@@ -127,12 +127,12 @@ class OrganisasiResource extends Resource
             'edit' => Pages\EditOrganisasi::route('/{record}/edit'),
         ];
     }
-    public static function getNavigationBadge(): ?string
-    {
-        return Cache::remember(
-            'organisasi_navigation_count',
-            now()->addMinutes(10),
-            fn() => number_format(static::getModel()::count())
-        );
-    }
+    // public static function getNavigationBadge(): ?string
+    // {
+    //     return Cache::remember(
+    //         'organisasi_navigation_count',
+    //         now()->addMinutes(10),
+    //         fn() => number_format(static::getModel()::count())
+    //     );
+    // }
 }

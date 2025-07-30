@@ -230,7 +230,7 @@ class ProgramResource extends BaseResource
                     ->searchable()
                     ->sortable()
                     ->wrap()
-                    ->limit(80)
+                    ->limit(100)
                     ->tooltip(function (TextColumn $column): ?string {
                         $state = $column->getState();
                         return strlen($state) > 80 ? $state : null;
@@ -307,7 +307,7 @@ class ProgramResource extends BaseResource
                             ->leftJoin('sub_kegiatan', 'kegiatan.id_kegiatan', '=', 'sub_kegiatan.id_kegiatan')
                             ->groupBy('program.id_program')
                             ->orderBy(DB::raw('
-                                CASE 
+                                CASE
                                     WHEN SUM(COALESCE(sub_kegiatan.anggaran, 0)) = 0 THEN 0
                                     ELSE (SUM(COALESCE(sub_kegiatan.realisasi, 0)) / SUM(COALESCE(sub_kegiatan.anggaran, 0)) * 100)
                                 END
@@ -406,11 +406,11 @@ class ProgramResource extends BaseResource
                     ->query(function (Builder $query): Builder {
                         return $query->whereHas('subKegiatan')
                             ->havingRaw('
-                                (SELECT SUM(realisasi) FROM sub_kegiatan 
-                                 JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan 
-                                 WHERE kegiatan.id_program = program.id_program) / 
-                                NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan 
-                                        JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan 
+                                (SELECT SUM(realisasi) FROM sub_kegiatan
+                                 JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan
+                                 WHERE kegiatan.id_program = program.id_program) /
+                                NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan
+                                        JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan
                                         WHERE kegiatan.id_program = program.id_program), 0) * 100 < 60
                             ');
                     }),
@@ -420,11 +420,11 @@ class ProgramResource extends BaseResource
                     ->query(function (Builder $query): Builder {
                         return $query->whereHas('subKegiatan')
                             ->havingRaw('
-                                (SELECT SUM(realisasi) FROM sub_kegiatan 
-                                 JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan 
-                                 WHERE kegiatan.id_program = program.id_program) / 
-                                NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan 
-                                        JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan 
+                                (SELECT SUM(realisasi) FROM sub_kegiatan
+                                 JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan
+                                 WHERE kegiatan.id_program = program.id_program) /
+                                NULLIF((SELECT SUM(anggaran) FROM sub_kegiatan
+                                        JOIN kegiatan ON sub_kegiatan.id_kegiatan = kegiatan.id_kegiatan
                                         WHERE kegiatan.id_program = program.id_program), 0) * 100 >= 80
                             ');
                     }),
@@ -498,6 +498,7 @@ class ProgramResource extends BaseResource
 
                         TextEntry::make('nama_program')
                             ->label('Nama Program')
+                            ->wrap()
                             ->columnSpanFull(),
 
                         TextEntry::make('indikator.nama_indikator')

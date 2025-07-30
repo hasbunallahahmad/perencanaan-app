@@ -21,6 +21,10 @@ class MasterSasaranResource extends Resource
     protected static ?string $modelLabel = 'Master Sasaran ';
     protected static ?string $pluralModelLabel = 'Master Sasaran ';
     protected static ?int $navigationSort = 5;
+    public static function canAccess(): bool
+    {
+        return \Illuminate\Support\Facades\Auth::user()->hasRole('super_admin');
+    }
     public static function form(Form $form): Form
     {
         return $form

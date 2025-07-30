@@ -335,8 +335,8 @@ class SubKegiatanResource extends BaseResource
                     ->label('Nama Sub Kegiatan')
                     ->searchable()
                     ->sortable()
-                    ->wrap()
-                    ->limit(60),
+                    ->wrap(),
+                // ->limit(100),
                 TextColumn::make('indikator.nama_indikator')
                     ->label('Indikator')
                     ->searchable()
@@ -391,6 +391,7 @@ class SubKegiatanResource extends BaseResource
                     ->summarize([
                         Tables\Columns\Summarizers\Sum::make()
                             ->numeric()
+
                             ->formatStateUsing(fn($state) => 'Rp ' . number_format($state ?? 0, 0, ',', '.'))
                             ->label('Total Anggaran'),
                     ]),
@@ -418,9 +419,9 @@ class SubKegiatanResource extends BaseResource
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return $query->orderByRaw("
-                            CASE 
-                                WHEN anggaran = 0 THEN 0 
-                                ELSE (realisasi / anggaran * 100) 
+                            CASE
+                                WHEN anggaran = 0 THEN 0
+                                ELSE (realisasi / anggaran * 100)
                             END {$direction}
                         ");
                     })

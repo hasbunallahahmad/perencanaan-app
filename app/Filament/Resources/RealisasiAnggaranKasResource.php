@@ -332,6 +332,8 @@ class RealisasiAnggaranKasResource extends Resource
             static::convertToFloat($get('rencana_tw_4')),
         ])->sum();
 
+        // PERBAIKAN: Set nilai-nilai yang diperlukan
+        $set('jumlah_realisasi', $totalRealisasi);  // ← TAMBAHKAN INI untuk fix error
         $set('realisasi_sd_tw', $totalRealisasi);
 
         // Hitung persentase berdasarkan total rencana

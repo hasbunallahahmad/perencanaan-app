@@ -79,6 +79,7 @@ class RealisasiAnggaranKas extends Model
         'realisasi_tw_4' => 0,
         'realisasi_sd_tw' => 0,
         'persentase_total' => 0,
+        'jumlah_realisasi' => 0,
         'status' => 'pending',
     ];
 
@@ -237,7 +238,10 @@ class RealisasiAnggaranKas extends Model
             $this->persentase_total = 0;
         }
     }
-
+    public function updateJumlahRealisasi(): void
+    {
+        $this->jumlah_realisasi = $this->getTotalRealisasiAttribute();
+    }
     public function updateRealisasiSdTw(): void
     {
         $this->realisasi_sd_tw = $this->getTotalRealisasiAttribute();
@@ -249,8 +253,9 @@ class RealisasiAnggaranKas extends Model
         parent::boot();
 
         static::saving(function ($model) {
-            $model->updateRealisasiSdTw();
-            $model->calculatePersentase();
+            $model->updateJumlahRealisasi(); // Set jumlah_realisasi
+            $model->updateRealisasiSdTw();   // Set realisasi_sd_tw
+            $model->calculatePersentase();    // Set persentase_total
         });
     }
 
